@@ -1,7 +1,26 @@
-package main
+package wrapper
 
-import "fmt"
+import (
+    "sync"
+)
 
-func main() {
-	fmt.Println("Hello, World!")
+var channelCounter int
+var mu sync.Mutex
+
+
+type Channel[T any] struct {
+    ID int
+    Chan chan T
+}
+
+
+func CreateChannel[T any]() Channel[T] {
+    mu.Lock()
+    channelCounter++
+	defer mu.Unlock()
+	
+    return Channel[T]{
+        ID: channelCounter,
+        Chan: make(chan T),
+    }
 }
