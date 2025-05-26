@@ -2,10 +2,14 @@ package wrapper
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
-    "os"
 )
 
 var channelCounter int
@@ -13,40 +17,59 @@ var mu sync.Mutex
 const logFile = "channels.json"
 
 
-type Channel[T any] struct {
+type Channel struct {
     ID int
-    Chan chan T
+    Chan chan Message
 }
 
+type Message struct {
+    SenderID int64  
+    ChannelID int
+    Value string
+}
 
-func CreateChannel[T any]() Channel[T] {
-    log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+func CreateChannel() Channel {
 
     mu.Lock()
     channelCounter++
 	defer mu.Unlock()
-    log.Printf("Creating channel, with ID: %d", channelCounter)
 
-	toJson(channelCounter)
-    return Channel[T]{
+	appendJSON(map[string]interface{}{
+        "channelId": channelCounter,
+        "timestamp": time.Now().Format(time.RFC3339Nano),
+    })
+
+    return Channel{
         ID: channelCounter,
-        Chan: make(chan T),
+        Chan: make(chan Message),
     }
 
     
 }
 
-func toJson(id int) string {
-    data := map[string]interface{}{
-		"channelId":    id,
-		"Timestamp":   time.Now().Format(time.RFC3339Nano),
+func (c Channel) Send(value string) {
+    gid := GetGoid()
+    message := Message{
+        SenderID:  gid,
+        ChannelID: c.ID,
+        Value:     value,
     }
+    appendJSON(map[string]interface{}{
+        "event":       "send",
+        "goroutineId": gid,
+        "channelId":   c.ID,
+        "value":       value,
+        "timestamp":   time.Now().Format(time.RFC3339Nano),
+    })
 
-    jsonData, err := json.Marshal(data)
+    c.Chan <- message
+}
+
+func appendJSON(entry map[string]interface{}) {
+    jsonData, err := json.Marshal(entry)
     if err != nil {
-        log.Fatalf("Error marshalling channel to JSON: %v", err)
+        log.Fatalf("Error marshalling JSON entry: %v", err)
     }
-    log.Printf("Channel JSON: %s", jsonData)
 
     f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
     if err != nil {
@@ -57,7 +80,20 @@ func toJson(id int) string {
     if _, err := f.Write(append(jsonData, '\n')); err != nil {
         log.Fatalf("Error writing to log file: %v", err)
     }
+}
 
-    log.Printf("Channel JSON: %s", jsonData)
-    return string(jsonData)
+func GetGoid() int64 {
+    var (
+        buf [64]byte
+        n   = runtime.Stack(buf[:], false)
+        stk = strings.TrimPrefix(string(buf[:n]), "goroutine")
+    )
+
+    idField := strings.Fields(stk)[0]
+    id, err := strconv.Atoi(idField)
+    if err!= nil {
+        panic(fmt.Errorf("can not get goroutine id: %v", err))
+    }
+
+    return int64(id)
 }
