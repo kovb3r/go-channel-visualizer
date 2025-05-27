@@ -16,6 +16,11 @@ var channelCounter int
 var mu sync.Mutex
 const logFile = "channels.json"
 
+func init() {
+    if err := os.WriteFile(logFile, []byte("[]"), 0644); err != nil {
+        log.Fatalf("Nem sikerült inicializálni a log fájlt: %v", err)
+    }
+}
 
 type Channel struct {
     ID int
@@ -66,19 +71,24 @@ func (c Channel) Send(value string) {
 }
 
 func appendJSON(entry map[string]interface{}) {
-    jsonData, err := json.Marshal(entry)
-    if err != nil {
-        log.Fatalf("Error marshalling JSON entry: %v", err)
+    
+    var all []map[string]interface{}
+    data, err := os.ReadFile(logFile)
+    if err == nil && len(data) > 0 {
+        if err := json.Unmarshal(data, &all); err != nil {
+            log.Fatalf("Régi JSON parse hiba: %v\nAdat: %s", err, data)
+        }
     }
+    
+    all = append(all, entry)
 
-    f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    
+    out, err := json.MarshalIndent(all, "", "  ")
     if err != nil {
-        log.Fatalf("Error opening log file: %v", err)
+        log.Fatalf("JSON marshal hiba: %v", err)
     }
-    defer f.Close()
-
-    if _, err := f.Write(append(jsonData, '\n')); err != nil {
-        log.Fatalf("Error writing to log file: %v", err)
+    if err := os.WriteFile(logFile, out, 0644); err != nil {
+        log.Fatalf("JSON fájl írási hiba: %v", err)
     }
 }
 
