@@ -16,11 +16,23 @@ var channelCounter int    // egyedi azonosító a csatornákhoz
 var mu sync.Mutex        // szinkronizáláshoz használt mutex
 var logFile string      // log fájl neve
 var messageCounter int // egyedi azonosító üzenetekhez
+var events = make(map[int]Event)   // események tárolására
 
 // A program indulásakor legenerál egy egyedi fájlnevet az eseménylog számára
 func init() {           
     timestamp := time.Now().Format("20060102_150405.000") // ÉvHónapNap_ÓraPercMásodperc.Millisec
     logFile = fmt.Sprintf("channels_%s.json", timestamp) // például: channels_20250627_114301.123.json
+}
+
+// Esemény struktúra az üzenetküldési események naplózásához
+type Event struct {
+    ChannelID   int         
+    MessageID   int         
+    SenderID    int64       
+    ReceiverID  int64       
+    SendTime    string      
+    ReceiveTime string      
+    Value       any 
 }
 
 //Általános csatorna típus generikus T típussal
@@ -29,7 +41,6 @@ type Channel[T any] struct {
     Chan chan Message[T]
 }
 
-// M
 type Message[T any] struct {
     SenderID   int64 // küldő goroutine ID
 	ChannelID  int   // az adott csatorna azonosítója
@@ -46,7 +57,7 @@ func CreateChannel[T any]() Channel[T] {
     mu.Unlock()
 
     // logoljuk a csatorna létrehozását
-    appendJSON(map[string]interface{}{
+    appendJSON(map[string]any{
         "channelId": id,
         "timestamp": time.Now().Format(time.RFC3339Nano),
     })
@@ -62,10 +73,19 @@ func CreateChannel[T any]() Channel[T] {
 func (c Channel[T]) Send(value T) {
     gid := GetGoid() // küldő goroutine id-ja
 
-    // Kritikus szakasz, ahol növeljük az üzenet számlálót
+    // Kritikus szakasz, ahol növeljük az üzenet számlálót és logoljuk az eseményt
     mu.Lock()
     messageCounter++
     id := messageCounter
+
+    events[id] = Event{
+        ChannelID: c.ID,
+        MessageID: id,
+        SenderID:  gid,
+        SendTime:  time.Now().Format(time.RFC3339Nano),
+        Value:     value,
+    }
+
     mu.Unlock()
 
     message := Message[T]{
@@ -74,16 +94,6 @@ func (c Channel[T]) Send(value T) {
         MessageID: id,
         Value:     value,
     }
-
-    // esemény logolása
-    appendJSON(map[string]interface{}{
-        "event":       "send",
-        "senderId": gid,
-        "channelId":   c.ID,
-        "messageId": id,
-        "value":       value,
-        "timestamp":   time.Now().Format(time.RFC3339Nano),
-    })
     
     c.Chan <- message
 }
@@ -93,25 +103,29 @@ func (c Channel[T]) Receive() T {
 
     msg := <-c.Chan 
         
-    // esemény logolása
-    appendJSON(map[string]interface{}{
-        "event":       "receive",
-        "recieverId": gid,
-        "channelId":   c.ID,
-        "messageId":   msg.MessageID,
-        "value":       msg.Value,
-        "timestamp":   time.Now().Format(time.RFC3339Nano),
-    })
+
+    mu.Lock()
+    event, exists := events[msg.MessageID]
+    if exists {
+        event.ReceiverID = gid
+        event.ReceiveTime = time.Now().Format(time.RFC3339Nano)
+        // map frissítése
+        events[msg.MessageID] = event
+        // essemény logolása
+        appendJSON(event)
+        // esemény eltávolítása a map-ból
+        delete(events, msg.MessageID)
+    }
+    mu.Unlock()
+
     return msg.Value
 }
 
 // Log bejegyzés hozzáadása a JSON fájlhoz
-func appendJSON(entry map[string]interface{}) {
+func appendJSON(event any) {
 
-    mu.Lock()
-    defer mu.Unlock()
 
-    var all []map[string]interface{}
+    var all []any
 
     // meglévő adatok beolvasása (ha már létezik a fájl)
     data, err := os.ReadFile(logFile)
@@ -122,7 +136,7 @@ func appendJSON(entry map[string]interface{}) {
     }
     
     // új bejegyzés hozzáadása
-    all = append(all, entry)
+    all = append(all, event)
 
     // JSON formátumra alakítás és fájlba írás
     out, err := json.MarshalIndent(all, "", "  ")
