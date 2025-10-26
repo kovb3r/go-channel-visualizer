@@ -1,10 +1,7 @@
 package wrapper
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -57,7 +54,7 @@ func CreateChannel[T any]() Channel[T] {
     mu.Unlock()
 
     // logoljuk a csatorna létrehozását
-    appendJSON(map[string]any{
+    LogChannel(map[string]any{
         "channelId": id,
         "timestamp": time.Now().Format(time.RFC3339Nano),
     })
@@ -109,43 +106,14 @@ func (c Channel[T]) Receive() T {
     if exists {
         event.ReceiverID = gid
         event.ReceiveTime = time.Now().Format(time.RFC3339Nano)
-        // map frissítése
-        events[msg.MessageID] = event
         // essemény logolása
-        appendJSON(event)
+        LogEvent(event)
         // esemény eltávolítása a map-ból
         delete(events, msg.MessageID)
     }
     mu.Unlock()
 
     return msg.Value
-}
-
-// Log bejegyzés hozzáadása a JSON fájlhoz
-func appendJSON(event any) {
-
-
-    var all []any
-
-    // meglévő adatok beolvasása (ha már létezik a fájl)
-    data, err := os.ReadFile(logFile)
-    if err == nil && len(data) > 0 {
-        if err := json.Unmarshal(data, &all); err != nil {
-            log.Fatalf("Régi JSON parse hiba: %v\nAdat: %s", err, data)
-        }
-    }
-    
-    // új bejegyzés hozzáadása
-    all = append(all, event)
-
-    // JSON formátumra alakítás és fájlba írás
-    out, err := json.MarshalIndent(all, "", "  ")
-    if err != nil {
-        log.Fatalf("JSON marshal hiba: %v", err)
-    }
-    if err := os.WriteFile(logFile, out, 0644); err != nil {
-        log.Fatalf("JSON fájl írási hiba: %v", err)
-    }
 }
 
 // Goroutine ID lekérdezése (nem hivatalos módszer, de működik)

@@ -18,14 +18,14 @@ type name struct {
 func nameChannel(c wrapper.Channel[name]) {
 	c.Send(name{"Alice", 30})
 	msg := c.Receive()
-	fmt.Printf("Received: %s, Age: %d\n", msg.Name, msg.Age)
+	fmt.Printf("Name: %s, Age: %d\n", msg.Name, msg.Age)
 	wg.Done()
 }
 
 // Másik goroutine: fogadja az előzőtől kapott name értéket, majd visszaküld egy másikat
 func nameChannel2(c wrapper.Channel[name]) {
 	msg := c.Receive()
-	fmt.Printf("Received: %s, Age: %d\n", msg.Name, msg.Age)
+	fmt.Printf("Name: %s, Age: %d\n", msg.Name, msg.Age)
 	c.Send(name{"Bob", 25})
 	wg.Done()
 }
