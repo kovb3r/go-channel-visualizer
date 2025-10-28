@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { D3ExampleComponent } from './d3-example.component';
+import { TraceUploadComponent } from './trace-upload.component';
 
-describe('D3ExampleComponent', () => {
-  let component: D3ExampleComponent;
-  let fixture: ComponentFixture<D3ExampleComponent>;
+describe('TraceUploadComponent', () => {
+  let component: TraceUploadComponent;
+  let fixture: ComponentFixture<TraceUploadComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [D3ExampleComponent]
+      imports: [TraceUploadComponent]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(D3ExampleComponent);
+    fixture = TestBed.createComponent(TraceUploadComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
