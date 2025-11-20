@@ -30,6 +30,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   private svg!: d3.Selection<SVGSVGElement, unknown, null, undefined>;
   private gLinks!: d3.Selection<SVGGElement, unknown, null, undefined>;
   private gNodes!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private gViewport!: d3.Selection<SVGGElement, unknown, null, undefined>;
 
   // D3 force simulation példány
   private sim!: d3.Simulation<SimNode, SimLink>;
@@ -41,6 +42,16 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   // Csatorna alapú színskála (ordinal)
   private channelColor = d3.scaleOrdinal<number, string>(d3.schemeTableau10);
   private viewReady = false; // true, ha az SVG inicializálva lett
+
+  // Zoom viselkedés definiálása
+  private zoom = d3
+    .zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.2, 8]) // min/max nagyítás
+    .translateExtent([[0, 0], [this.width, this.height]])
+    .on('zoom', (event) => {
+      // az aktuális transzformációt a viewport <g>-re tesszük
+      this.gViewport.attr('transform', event.transform.toString());
+    });
 
   // Komponens inicializálás után: SVG létrehozása és első rajzolás
   ngAfterViewInit(): void {
@@ -60,21 +71,39 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     this.svg = d3
       .select(this.svgRef.nativeElement)
       .attr('viewBox', `0 0 ${this.width} ${this.height}`)
-      .style('background', '#0b1220');
+      .call(this.zoom as any)
+      .style('background', '#0b1220')
+      .style('overflow', 'hidden');   
 
-    // Tisztítás és két csoport létrehozása: élek és csomópontok
+    //tisztítás
     this.svg.selectAll('*').remove();
-    this.gLinks = this.svg.append('g').attr('class', 'links');
-    this.gNodes = this.svg.append('g').attr('class', 'nodes');
+
+    const defs = this.svg.append('defs');
+    defs.append('clipPath')
+      .attr('id', 'clip-viewport')
+      .append('rect')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', this.width)
+      .attr('height', this.height);
+
+    // Viewport csoport a zoom/pan kezeléséhez
+    this.gViewport = this.svg.append('g')
+      .attr('class', 'viewport')
+      .attr('clip-path', 'url(#clip-viewport)');
+
+    // két csoport létrehozása: élek és csomópontok
+    this.gLinks = this.gViewport.append('g').attr('class', 'links');
+    this.gNodes = this.gViewport.append('g').attr('class', 'nodes');
   }
 
   // Fő rajzoló függvény: létrehozza / frissíti a szimulációt, éleket, node-okat
   private draw() {
     // Ha nincs adat, töröljük a tartalmat és létrehozzuk az üres csoportokat
     if (!this.nodes?.length && !this.links?.length) {
-      this.svg?.selectAll('*').remove();
-      this.gLinks = this.svg.append('g').attr('class', 'links');
-      this.gNodes = this.svg.append('g').attr('class', 'nodes');
+      this.gViewport.selectAll('*').remove();
+      this.gLinks = this.gViewport.append('g').attr('class', 'links');
+      this.gNodes = this.gViewport.append('g').attr('class', 'nodes');
       return;
     }
 
@@ -110,8 +139,8 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     this.sim = d3
       .forceSimulation<SimNode>(simNodes)
       .force('center', d3.forceCenter(this.width / 2, this.height / 2))
-      .force('charge', d3.forceManyBody<SimNode>().strength(-250))
-      .force('collision', d3.forceCollide<SimNode>().radius(28))
+      .force('charge', d3.forceManyBody<SimNode>().strength(-350))
+      .force('collision', d3.forceCollide<SimNode>().radius(30))
       .force('x', d3.forceX<SimNode>(this.width / 2).strength(0.05))
       .force('y', d3.forceY<SimNode>(this.height / 2).strength(0.05))
       .force('link', linkForce)
