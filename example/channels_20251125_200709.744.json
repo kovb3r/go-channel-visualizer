@@ -1,0 +1,84 @@
+{
+  "Channels": [
+    {
+      "bufferSize": 0,
+      "buffered": false,
+      "channelId": 1,
+      "timestamp": "2025-11-25T20:07:09.7548835+01:00"
+    },
+    {
+      "bufferSize": 0,
+      "buffered": false,
+      "channelId": 2,
+      "timestamp": "2025-11-25T20:07:09.7553959+01:00"
+    },
+    {
+      "bufferSize": 0,
+      "buffered": false,
+      "channelId": 3,
+      "timestamp": "2025-11-25T20:07:09.7559176+01:00"
+    }
+  ],
+  "Events": [
+    {
+      "ChannelID": 2,
+      "MessageID": 1,
+      "SenderID": 24,
+      "ReceiverID": 21,
+      "SendTime": "2025-11-25T20:07:09.7561821+01:00",
+      "ReceiveTime": "2025-11-25T20:07:09.7561821+01:00",
+      "Value": {
+        "Name": "Alice",
+        "Age": 30
+      }
+    },
+    {
+      "ChannelID": 2,
+      "MessageID": 3,
+      "SenderID": 21,
+      "ReceiverID": 24,
+      "SendTime": "2025-11-25T20:07:09.7566861+01:00",
+      "ReceiveTime": "2025-11-25T20:07:09.7566861+01:00",
+      "Value": {
+        "Name": "Bob",
+        "Age": 25
+      }
+    },
+    {
+      "ChannelID": 1,
+      "MessageID": 2,
+      "SenderID": 22,
+      "ReceiverID": 19,
+      "SendTime": "2025-11-25T20:07:09.7566861+01:00",
+      "ReceiveTime": "2025-11-25T20:07:09.7576006+01:00",
+      "Value": "ping"
+    },
+    {
+      "ChannelID": 1,
+      "MessageID": 4,
+      "SenderID": 19,
+      "ReceiverID": 22,
+      "SendTime": "2025-11-25T20:07:09.7581055+01:00",
+      "ReceiveTime": "2025-11-25T20:07:09.7581055+01:00",
+      "Value": "pong"
+    },
+    {
+      "ChannelID": 3,
+      "MessageID": 5,
+      "SenderID": 23,
+      "ReceiverID": 20,
+      "SendTime": "2025-11-25T20:07:09.7591926+01:00",
+      "ReceiveTime": "2025-11-25T20:07:09.7591926+01:00",
+      "Value": 42
+    },
+    {
+      "ChannelID": 3,
+      "MessageID": 6,
+      "SenderID": 20,
+      "ReceiverID": 23,
+      "SendTime": "2025-11-25T20:07:09.7597085+01:00",
+      "ReceiveTime": "2025-11-25T20:07:09.7597085+01:00",
+      "Value": 24
+    }
+  ]
+}

@@ -46,24 +46,43 @@ type Message[T any] struct {
 }
 
 // Létrehoz egy új, típusos csatornát
-func CreateChannel[T any]() Channel[T] {          
+func CreateChannel[T any](buffer ...int) Channel[T] {          
     //Kritikus szakasz, ahol növeljük a csatorna számlálót
     mu.Lock()
     channelCounter++
     id := channelCounter
     mu.Unlock()
 
-    // logoljuk a csatorna létrehozását
-    LogChannel(map[string]any{
-        "channelId": id,
-        "timestamp": time.Now().Format(time.RFC3339Nano),
-    })
+    size := 0
+    
+    if len(buffer) > 0 && buffer[0] > 0 {
+        size = buffer[0]
 
-    return Channel[T]{
-        ID:   id,
-        Chan: make(chan Message[T]),
+        LogChannel(map[string]any{
+            "channelId": id,
+            "timestamp": time.Now().Format(time.RFC3339Nano),
+            "buffered": true,
+            "bufferSize": size,
+        })
+
+        return Channel[T]{
+            ID:   id,
+            Chan: make(chan Message[T], size),
+        }
+    }else {
+        // logoljuk a csatorna létrehozását
+        LogChannel(map[string]any{
+            "channelId": id,
+            "timestamp": time.Now().Format(time.RFC3339Nano),
+            "buffered": false,
+            "bufferSize": size,
+        })
+
+        return Channel[T]{
+            ID:   id,
+            Chan: make(chan Message[T]),
+        }
     }
-
 }
 
 // Üzenet küldése a csatornára, és esemény logolása

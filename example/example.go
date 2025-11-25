@@ -64,18 +64,18 @@ func number2(c wrapper.Channel[int]) {
 
 func main() {
 	// Három típusos csatorna létrehozása: string, name és int
-	c := wrapper.CreateChannel[string]()
+	c := wrapper.CreateChannel[string](0) // pufferelt csatorna
 	n := wrapper.CreateChannel[name]()
 	i := wrapper.CreateChannel[int]()
 
 	// 6 goroutine-t indítunk el
 	wg.Add(6)
-	go ping(c)
-	go pong(c)
-	go number(i)
-	go number2(i)
-	go nameChannel(n)
-	go nameChannel2(n)
+	go pong(c)    
+    go number2(i)  
+    go nameChannel2(n) 
+    go ping(c)
+    go number(i)
+    go nameChannel(n)
 
 	// Várakozás az összes goroutine befejeződésére
 	wg.Wait()
