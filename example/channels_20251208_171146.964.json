@@ -1,0 +1,84 @@
+{
+  "Channels": [
+    {
+      "bufferSize": 3,
+      "buffered": true,
+      "channelId": 1,
+      "timestamp": "2025-12-08T17:11:46.9776416+01:00"
+    },
+    {
+      "bufferSize": 0,
+      "buffered": false,
+      "channelId": 2,
+      "timestamp": "2025-12-08T17:11:46.9781479+01:00"
+    },
+    {
+      "bufferSize": 0,
+      "buffered": false,
+      "channelId": 3,
+      "timestamp": "2025-12-08T17:11:46.9792114+01:00"
+    }
+  ],
+  "Events": [
+    {
+      "ChannelID": 2,
+      "MessageID": 1,
+      "SenderID": 11,
+      "ReceiverID": 8,
+      "SendTime": "2025-12-08T17:11:46.9796906+01:00",
+      "ReceiveTime": "2025-12-08T17:11:46.9796906+01:00",
+      "Value": {
+        "Name": "Alice",
+        "Age": 30
+      }
+    },
+    {
+      "ChannelID": 3,
+      "MessageID": 2,
+      "SenderID": 10,
+      "ReceiverID": 7,
+      "SendTime": "2025-12-08T17:11:46.9801954+01:00",
+      "ReceiveTime": "2025-12-08T17:11:46.9807134+01:00",
+      "Value": 42
+    },
+    {
+      "ChannelID": 2,
+      "MessageID": 4,
+      "SenderID": 8,
+      "ReceiverID": 11,
+      "SendTime": "2025-12-08T17:11:46.981244+01:00",
+      "ReceiveTime": "2025-12-08T17:11:46.981244+01:00",
+      "Value": {
+        "Name": "Bob",
+        "Age": 25
+      }
+    },
+    {
+      "ChannelID": 1,
+      "MessageID": 3,
+      "SenderID": 9,
+      "ReceiverID": 6,
+      "SendTime": "2025-12-08T17:11:46.981244+01:00",
+      "ReceiveTime": "2025-12-08T17:11:46.9829791+01:00",
+      "Value": "ping"
+    },
+    {
+      "ChannelID": 3,
+      "MessageID": 5,
+      "SenderID": 7,
+      "ReceiverID": 10,
+      "SendTime": "2025-12-08T17:11:46.9836544+01:00",
+      "ReceiveTime": "2025-12-08T17:11:46.9836544+01:00",
+      "Value": 24
+    },
+    {
+      "ChannelID": 1,
+      "MessageID": 6,
+      "SenderID": 6,
+      "ReceiverID": 9,
+      "SendTime": "2025-12-08T17:11:46.9841603+01:00",
+      "ReceiveTime": "2025-12-08T17:11:46.9841603+01:00",
+      "Value": "pong"
+    }
+  ]
+}

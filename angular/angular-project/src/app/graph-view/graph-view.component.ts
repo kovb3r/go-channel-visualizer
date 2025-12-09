@@ -47,7 +47,10 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   private zoom = d3
     .zoom<SVGSVGElement, unknown>()
     .scaleExtent([0.2, 8]) // min/max nagyítás
-    .translateExtent([[0, 0], [this.width, this.height]])
+    .translateExtent([
+      [0, 0],
+      [this.width, this.height],
+    ])
     .on('zoom', (event) => {
       // az aktuális transzformációt a viewport <g>-re tesszük
       this.gViewport.attr('transform', event.transform.toString());
@@ -73,13 +76,14 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       .attr('viewBox', `0 0 ${this.width} ${this.height}`)
       .call(this.zoom as any)
       .style('background', '#0b1220')
-      .style('overflow', 'hidden');   
+      .style('overflow', 'hidden');
 
     //tisztítás
     this.svg.selectAll('*').remove();
 
     const defs = this.svg.append('defs');
-    defs.append('clipPath')
+    defs
+      .append('clipPath')
       .attr('id', 'clip-viewport')
       .append('rect')
       .attr('x', 0)
@@ -88,7 +92,8 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       .attr('height', this.height);
 
     // Viewport csoport a zoom/pan kezeléséhez
-    this.gViewport = this.svg.append('g')
+    this.gViewport = this.svg
+      .append('g')
       .attr('class', 'viewport')
       .attr('clip-path', 'url(#clip-viewport)');
 
@@ -121,6 +126,8 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     const simLinks: SimLink[] = this.links.map((l) => ({
       id: l.id,
       ch: l.ch,
+      buffered: l.buffered,
+      bufferSize: l.bufferSize,
       source: String(l.source),
       target: String(l.target),
     }));
@@ -139,7 +146,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     this.sim = d3
       .forceSimulation<SimNode>(simNodes)
       .force('center', d3.forceCenter(this.width / 2, this.height / 2))
-      .force('charge', d3.forceManyBody<SimNode>().strength(-350))
+      .force('charge', d3.forceManyBody<SimNode>().strength(-600).distanceMax(1000))
       .force('collision', d3.forceCollide<SimNode>().radius(30))
       .force('x', d3.forceX<SimNode>(this.width / 2).strength(0.05))
       .force('y', d3.forceY<SimNode>(this.height / 2).strength(0.05))
@@ -160,7 +167,8 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       .append('line')
       .attr('stroke-width', 2)
       .attr('stroke', (d) => this.channelColor(d.ch) as string) // csatorna szerinti szín
-      .attr('opacity', 0.7);
+      .attr('opacity', 0.7)
+      .attr('stroke-dasharray', (d: any) => d.buffered ? '6,4' : null);
 
     // Node-ok SVG elemei: group (g) tartalmaz circle + text
     const nodeSel = this.gNodes
@@ -247,6 +255,8 @@ type SimNode = d3.SimulationNodeDatum & {
 type SimLink = d3.SimulationLinkDatum<SimNode> & {
   id: string;
   ch: number;
+  buffered?: boolean;
+  bufferSize?: number;
   // a forcelink előtt stringként van (id-ként), utána D3 átalakítja SimNode objektummá
   source: string | SimNode;
   target: string | SimNode;

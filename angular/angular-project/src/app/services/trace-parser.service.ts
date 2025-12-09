@@ -1,12 +1,14 @@
 import { Injectable } from '@angular/core';
 import {
-  TraceFile, NormalizedTrace, NormalizedEvent,
-  VizNode, VizLink
+  TraceFile,
+  NormalizedTrace,
+  NormalizedEvent,
+  VizNode,
+  VizLink,
 } from '../models/trace.model';
 
 @Injectable({ providedIn: 'root' })
 export class TraceParserService {
-
   // normalizeIso: rövidebb tizedesjegyeket vág le úgy, hogy a Date.parse konzisztensen működjön
   // (a regex a tizedes részre fókuszál, és legfeljebb 3 számjegyet hagy meg)
   private normalizeIso(iso: string): string {
@@ -34,14 +36,19 @@ export class TraceParserService {
     const allTimes: number[] = [];
 
     // csatornák feldolgozása: timestamp -> ms, gyűjtjük a timeokat
-    const normChannels = (raw.Channels ?? []).map(ch => {
+    const normChannels = (raw.Channels ?? []).map((ch) => {
       const t = this.parseTimeMs(ch.timestamp);
       allTimes.push(t);
-      return { id: ch.channelId, createdAt: t };
+      return {
+        id: ch.channelId,
+        createdAt: t,
+        buffered: ch.buffered ?? false,
+        bufferSize: ch.bufferSize ?? 0,
+      };
     });
 
     // események feldolgozása: SendTime és ReceiveTime -> ms
-    const tmpEvents: NormalizedEvent[] = (raw.Events ?? []).map(e => {
+    const tmpEvents: NormalizedEvent[] = (raw.Events ?? []).map((e) => {
       const s = this.parseTimeMs(e.SendTime);
       const r = this.parseTimeMs(e.ReceiveTime);
       allTimes.push(s, r);
@@ -52,7 +59,7 @@ export class TraceParserService {
         to: e.ReceiverID,
         sendAt: s,
         recvAt: r,
-        value: e.Value
+        value: e.Value,
       };
     });
 
@@ -68,10 +75,15 @@ export class TraceParserService {
     // események rendezése és normalizálása (t0 levonása)
     const events = tmpEvents
       .sort((a, b) => a.sendAt - b.sendAt)
-      .map(e => ({ ...e, sendAt: e.sendAt - t0, recvAt: e.recvAt - t0 }));
+      .map((e) => ({ ...e, sendAt: e.sendAt - t0, recvAt: e.recvAt - t0 }));
 
     // csatornák normalizálása (createdAt relatív idő)
-    const channels = normChannels.map(c => ({ id: c.id, createdAt: c.createdAt - t0 }));
+    const channels = normChannels.map((c) => ({
+      id: c.id,
+      createdAt: c.createdAt - t0,
+      buffered: c.buffered,
+      bufferSize: c.bufferSize,
+    }));
 
     return { channels, events, t0, t1 };
   }
@@ -84,6 +96,13 @@ export class TraceParserService {
     const nodeSet = new Set<number>();
     const linkMap = new Map<string, VizLink>();
 
+    const chBuffered = new Map<number, boolean>();
+    const chBufSize = new Map<number, number>();
+    (trace.channels ?? []).forEach((c) => {
+      chBuffered.set(c.id, !!c.buffered);
+      chBufSize.set(c.id, c.bufferSize ?? 0);
+    });
+
     for (const e of trace.events) {
       nodeSet.add(e.from);
       nodeSet.add(e.to);
@@ -94,12 +113,22 @@ export class TraceParserService {
       const id = `ch${e.ch}-${a}-${b}`;
 
       if (!linkMap.has(id)) {
-        linkMap.set(id, { id, ch: e.ch, source: a, target: b });
+        linkMap.set(id, {
+          id,
+          ch: e.ch,
+          source: a,
+          target: b,
+          buffered: chBuffered.get(e.ch) ?? false,
+          bufferSize: chBufSize.get(e.ch) ?? 0,
+        });
       }
     }
 
     // csomópontok és élek tömbbé alakítása a vizualizációhoz
-    const nodes: VizNode[] = Array.from(nodeSet).map(id => ({ id, label: `g${id}` }));
+    const nodes: VizNode[] = Array.from(nodeSet).map((id) => ({
+      id,
+      label: `g${id}`,
+    }));
     const links: VizLink[] = Array.from(linkMap.values());
 
     return { nodes, links };

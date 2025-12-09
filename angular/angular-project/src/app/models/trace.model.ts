@@ -6,6 +6,8 @@ export type RawValue = string | number | Record<string, unknown>;
 export interface Channel {
     channelId: number;
     timestamp: string; // ISO string (pl. 2025-10-27T12:19:46.5502455+01:00)
+    buffered?: boolean;
+    bufferSize?: number;
 }
 
 export interface EventItem {
@@ -37,7 +39,7 @@ export interface NormalizedEvent {
 }
 
 export interface NormalizedTrace {
-    channels: { id: number; createdAt: number }[];
+    channels: { id: number; createdAt: number, buffered: boolean, bufferSize: number }[];
     events: NormalizedEvent[];
     t0: number;
     t1: number;
@@ -58,4 +60,6 @@ export interface VizLink {
     ch: number; // ChannelID, a színezéshez
     source: number; // goroutine id (kisebb)
     target: number; // goroutine id (nagyobb)
+    buffered?: boolean
+    bufferSize?: number;
 }
