@@ -22,6 +22,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   // Bemeneti adatok: csomópontok és élek a vizualizációhoz
   @Input() nodes: VizNode[] = [];
   @Input() links: VizLink[] = [];
+  @Input() clock = 0;
 
   // Hivatkozás az SVG elemre a sablonból
   @ViewChild('svgRef', { static: true }) svgRef!: ElementRef<SVGSVGElement>;
@@ -31,6 +32,8 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   private gLinks!: d3.Selection<SVGGElement, unknown, null, undefined>;
   private gNodes!: d3.Selection<SVGGElement, unknown, null, undefined>;
   private gViewport!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private linkSel!: d3.Selection<SVGLineElement, SimLink, SVGGElement, unknown>;
+  private nodeSel!: d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>;
 
   // D3 force simulation példány
   private sim!: d3.Simulation<SimNode, SimLink>;
@@ -66,7 +69,11 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   // Input változások figyelése: ha a nézet kész, újrarajzolunk
   ngOnChanges(ch: SimpleChanges): void {
     if (!this.viewReady) return;
-    if (ch['nodes'] || ch['links']) this.draw();
+    if (ch['nodes'] || ch['links']) {
+      this.draw();
+    } else if (ch['clock']) {
+      this.applyVisibility();
+    }
   }
 
   // SVG és alapg csoportok létrehozása / törlése
@@ -128,6 +135,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       ch: l.ch,
       buffered: l.buffered,
       bufferSize: l.bufferSize,
+      appearAt: l.appearAt ?? 0,
       source: String(l.source),
       target: String(l.target),
     }));
@@ -146,7 +154,10 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     this.sim = d3
       .forceSimulation<SimNode>(simNodes)
       .force('center', d3.forceCenter(this.width / 2, this.height / 2))
-      .force('charge', d3.forceManyBody<SimNode>().strength(-600).distanceMax(1000))
+      .force(
+        'charge',
+        d3.forceManyBody<SimNode>().strength(-600).distanceMax(1000)
+      )
       .force('collision', d3.forceCollide<SimNode>().radius(30))
       .force('x', d3.forceX<SimNode>(this.width / 2).strength(0.05))
       .force('y', d3.forceY<SimNode>(this.height / 2).strength(0.05))
@@ -156,28 +167,30 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       .on('tick', () => this.onTick(simNodes, simLinks));
 
     // 4) Link SVG elemek: adat kötés, kilépők eltávolítása, enter rész létrehozása
-    const linkSel = this.gLinks
+    this.linkSel = this.gLinks
       .selectAll<SVGLineElement, SimLink>('line')
       .data(simLinks, (d: any) => d.id);
 
-    linkSel.exit().remove();
+    this.linkSel.exit().remove();
 
-    linkSel
+    const linkEnter = this.linkSel
       .enter()
       .append('line')
       .attr('stroke-width', 2)
       .attr('stroke', (d) => this.channelColor(d.ch) as string) // csatorna szerinti szín
       .attr('opacity', 0.7)
-      .attr('stroke-dasharray', (d: any) => d.buffered ? '6,4' : null);
+      .attr('stroke-dasharray', (d: any) => (d.buffered ? '6,4' : null)) // szaggatott, ha buffered
 
+    this.linkSel = linkEnter.merge(this.linkSel as any);
+    
     // Node-ok SVG elemei: group (g) tartalmaz circle + text
-    const nodeSel = this.gNodes
+    this.nodeSel = this.gNodes
       .selectAll<SVGGElement, SimNode>('g.node')
       .data(simNodes, (d: any) => d.id);
 
-    nodeSel.exit().remove();
+    this.nodeSel.exit().remove();
 
-    const enter = nodeSel.enter().append('g').attr('class', 'node');
+    const enter = this.nodeSel.enter().append('g').attr('class', 'node');
     enter
       .append('circle')
       .attr('r', 20)
@@ -190,6 +203,8 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       .attr('font-size', 12)
       .attr('fill', '#0b0f19')
       .text((d) => d.label); // címke: pl. g1, g2
+
+    this.nodeSel = enter.merge(this.nodeSel as any);
 
     // Drag viselkedés: start/drag/end események kezelése
     const dragBehavior = d3
@@ -211,6 +226,40 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
 
     // Drag-et mind az enter, mind az update szelekcióra alkalmazzuk
     this.gNodes.selectAll<SVGGElement, SimNode>('g.node').call(dragBehavior);
+
+    this.applyVisibility();
+  }
+
+  private applyVisibility() {
+    const now = this.clock ?? 0;
+
+    // 1) node láthatóság
+    const visibleNodeIds = new Set<number>();
+
+    this.nodeSel.style('display', (d) => {
+      const show = (d.appearAt ?? 0) <= now;
+      if (show) visibleNodeIds.add(d.id);
+      return show ? null : 'none';
+    });
+
+    // 2) link láthatóság: idő + mindkét végpont látszik
+    this.linkSel.style('display', (d) => {
+      const timeOk = (d.appearAt ?? 0) <= now;
+
+      // linkForce tick után source/target SimNode lesz,
+      // de a draw pillanatában még string is lehet.
+      const sId =
+        typeof d.source === 'string'
+          ? Number(d.source)
+          : (d.source as SimNode).id;
+      const tId =
+        typeof d.target === 'string'
+          ? Number(d.target)
+          : (d.target as SimNode).id;
+
+      const endsOk = visibleNodeIds.has(sId) && visibleNodeIds.has(tId);
+      return timeOk && endsOk ? null : 'none';
+    });
   }
 
   // Tick callback: pozíciók lekorlátozása és SVG frissítése minden lépésben
@@ -248,6 +297,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
 type SimNode = d3.SimulationNodeDatum & {
   id: number;
   label: string;
+  appearAt?: number;
   fx?: number | null; // rögzített X (drag vagy fixálás esetén)
   fy?: number | null; // rögzített Y
 };
@@ -257,6 +307,7 @@ type SimLink = d3.SimulationLinkDatum<SimNode> & {
   ch: number;
   buffered?: boolean;
   bufferSize?: number;
+  appearAt?: number;
   // a forcelink előtt stringként van (id-ként), utána D3 átalakítja SimNode objektummá
   source: string | SimNode;
   target: string | SimNode;

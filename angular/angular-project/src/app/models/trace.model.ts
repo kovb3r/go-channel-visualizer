@@ -10,7 +10,7 @@ export interface Channel {
     bufferSize?: number;
 }
 
-export interface EventItem {
+export interface TraceEvent {
     ChannelID: number;
     MessageID: number;
     SenderID: number;
@@ -22,12 +22,21 @@ export interface EventItem {
 
 export interface TraceFile {
     Channels: Channel[];
-    Events: EventItem[];
+    Events: TraceEvent[];
 }
 
 /**
  * Normalizált, időben ms-ra átszámolt változat.
  */
+
+export interface NormalizedChannel {
+    id: number;
+    createdAt: number; // ms, t0-hoz képest
+    buffered: boolean;
+    bufferSize: number;
+    firstUseAt: number | null; // első használat (ms, t0-hoz képest)
+}
+
 export interface NormalizedEvent {
     ch: number;
     msg: number;
@@ -39,7 +48,7 @@ export interface NormalizedEvent {
 }
 
 export interface NormalizedTrace {
-    channels: { id: number; createdAt: number, buffered: boolean, bufferSize: number }[];
+    channels: NormalizedChannel[];
     events: NormalizedEvent[];
     t0: number;
     t1: number;
@@ -53,6 +62,7 @@ export interface NormalizedTrace {
 export interface VizNode {
     id: number; // goroutine azonosító (pl. 23)
     label: string; // felirat (pl. "g23")
+    appearAt?: number; // ms, mikor jelenjen meg (opcionális)
 }
 
 export interface VizLink {
@@ -60,6 +70,7 @@ export interface VizLink {
     ch: number; // ChannelID, a színezéshez
     source: number; // goroutine id (kisebb)
     target: number; // goroutine id (nagyobb)
-    buffered?: boolean
+    buffered?: boolean;
     bufferSize?: number;
+    appearAt?: number; // ms, mikor jelenjen meg (opcionális)
 }

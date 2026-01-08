@@ -44,6 +44,7 @@ export class TraceParserService {
         createdAt: t,
         buffered: ch.buffered ?? false,
         bufferSize: ch.bufferSize ?? 0,
+        firstUseAt: null,
       };
     });
 
@@ -83,6 +84,7 @@ export class TraceParserService {
       createdAt: c.createdAt - t0,
       buffered: c.buffered,
       bufferSize: c.bufferSize,
+      firstUseAt: c.firstUseAt,
     }));
 
     return { channels, events, t0, t1 };
@@ -103,18 +105,31 @@ export class TraceParserService {
       chBufSize.set(c.id, c.bufferSize ?? 0);
     });
 
+    const nodeFirstUse = new Map<number, number>(); // nodeId -> ms
+    const linkFirstUse = new Map<string, number>(); // linkId -> ms
+
     for (const e of trace.events) {
       nodeSet.add(e.from);
       nodeSet.add(e.to);
+
+      // Node first use (min sendAt)
+      const t = e.sendAt;
+      const prevFrom = nodeFirstUse.get(e.from);
+      const prevTo = nodeFirstUse.get(e.to);
+      if (prevFrom === undefined || t < prevFrom) nodeFirstUse.set(e.from, t);
+      if (prevTo === undefined || t < prevTo) nodeFirstUse.set(e.to, t);
 
       // sorrendezés, hogy az él iránytól független legyen (konzisztens id)
       const a = Math.min(e.from, e.to);
       const b = Math.max(e.from, e.to);
       const id = `ch${e.ch}-${a}-${b}`;
 
+      const prevLink = linkFirstUse.get(id);
+      if (prevLink === undefined || t < prevLink) linkFirstUse.set(id, t);
+
       if (!linkMap.has(id)) {
         linkMap.set(id, {
-          id,
+          id: id,
           ch: e.ch,
           source: a,
           target: b,
@@ -128,8 +143,12 @@ export class TraceParserService {
     const nodes: VizNode[] = Array.from(nodeSet).map((id) => ({
       id,
       label: `g${id}`,
+      appearAt: nodeFirstUse.get(id) ?? 0
     }));
-    const links: VizLink[] = Array.from(linkMap.values());
+    const links: VizLink[] = Array.from(linkMap.values()).map(l => ({
+      ...l,
+      appearAt: linkFirstUse.get(l.id) ?? 0
+    }));
 
     return { nodes, links };
   }

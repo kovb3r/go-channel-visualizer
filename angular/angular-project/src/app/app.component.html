@@ -1,11 +1,67 @@
 <!-- Feltöltő sáv -->
-<div style="padding: 12px; background:#0a0f1c; border-bottom:1px solid #111827;">
+<div
+  style="padding: 12px; background: #0a0f1c; border-bottom: 1px solid #111827">
   <app-trace-upload (loaded)="onTraceLoaded($event)"></app-trace-upload>
 </div>
 
+<!-- Timeline / csúszka -->
+<div class="timeline-bar" *ngIf="filmDuration > 0">
+  <div class="timeline-row">
+    <span class="timeline-label">Idő:</span>
+    <span class="timeline-value"
+      >Film: {{ clock | number : "1.0-0" }} ms / {{ filmDuration }} ms
+      &nbsp;|&nbsp; 
+      Valós: {{ clockReal | number : "1.0-0" }} ms / {{ realDuration }} ms
+    </span>
+  </div>
+
+  <div class="controls-row">
+    <button class="btn" (click)="restart()" [disabled]="filmDuration <= 0">
+      ⟲
+    </button>
+    <button class="btn" (click)="step(-5000)" [disabled]="filmDuration <= 0">
+      -5ms
+    </button>
+    <button
+      class="btn primary"
+      (click)="togglePlay()"
+      [disabled]="filmDuration <= 0">
+      {{ playing ? "Pause" : "Play" }}
+    </button>
+    <button class="btn" (click)="step(5000)" [disabled]="filmDuration <= 0">
+      +5ms
+    </button>
+
+    <span class="spacer"></span>
+
+    <label class="speed">
+      Speed:
+      <select (change)="setSpeed(+$any($event.target).value)" [value]="speed">
+        <option [value]="200">0.2x</option>
+        <option [value]="500">0.5x</option>
+        <option [value]="1000">1x</option>
+        <option [value]="2000">2x</option>
+        <option [value]="5000">5x</option>
+      </select>
+    </label>
+  </div>
+
+  <input
+    class="timeline-slider"
+    type="range"
+    [min]="0"
+    [max]="filmDuration"
+    [step]="1"
+    [value]="clock"
+    (input)="onClockInput($event)" />
+</div>
+
 <!-- Statikus gráf nézet -->
-<div>
-  <app-graph-view [nodes]="nodes" [links]="links"></app-graph-view>
+<div class="graph-wrap">
+  <app-graph-view
+    [nodes]="allNodes"
+    [links]="allLinks"
+    [clock]="clockReal"></app-graph-view>
 </div>
 
 <router-outlet />

@@ -1,5 +1,3 @@
-// A fájl kommentelt változata: rövid, magyar nyelvű kommentek minden fontos részhez.
-
 import { Component, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
@@ -10,6 +8,8 @@ type RawValue = string | number | Record<string, unknown>;
 interface Channel {
   channelId: number; // csatorna egyedi azonosítója
   timestamp: string; // létrehozás időbélyege ISO formátumban
+  buffered?: boolean; // opcionális: pufferelt csatorna-e
+  bufferSize?: number; // opcionális: puffer mérete, ha pufferelt
 }
 
 // Esemény objektum a JSON fájlból

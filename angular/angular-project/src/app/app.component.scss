@@ -1,0 +1,86 @@
+.timeline-bar {
+    padding: 10px 12px;
+    background: #0a0f1c;
+    border-bottom: 1px solid #111827;
+    color: #e5e7eb;
+}
+
+.timeline-row {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    margin-bottom: 6px;
+}
+
+.timeline-label {
+    font-weight: 600;
+}
+
+.timeline-value {
+    opacity: 0.9;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+    font-size: 12px;
+}
+
+.timeline-slider {
+    width: 100%;
+}
+
+.controls-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 10px;
+}
+
+.btn {
+    background: #111827;
+    color: #e5e7eb;
+    border: 1px solid #1f2937;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background: #162033;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn.primary {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+.btn.primary:hover {
+    background: #dc2626;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.speed {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    opacity: 0.95;
+}
+
+.speed select {
+    background: #111827;
+    color: #e5e7eb;
+    border: 1px solid #1f2937;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+/*
+.graph-wrap {
+}*/
