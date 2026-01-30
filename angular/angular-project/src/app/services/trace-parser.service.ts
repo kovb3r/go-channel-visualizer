@@ -5,6 +5,7 @@ import {
   NormalizedEvent,
   VizNode,
   VizLink,
+  VizMessage,
 } from '../models/trace.model';
 
 @Injectable({ providedIn: 'root' })
@@ -151,5 +152,17 @@ export class TraceParserService {
     }));
 
     return { nodes, links };
+  }
+
+  toVizMessages(trace: NormalizedTrace): VizMessage[] {
+    return (trace.events ?? []).map((e) => ({
+      id: e.msg,
+      ch: e.ch,
+      from: e.from,
+      to: e.to,
+      sendAt: e.sendAt,
+      recvAt: e.recvAt,
+      value: e.value,
+    }));
   }
 }

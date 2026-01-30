@@ -74,3 +74,13 @@ export interface VizLink {
     bufferSize?: number;
     appearAt?: number; // ms, mikor jelenjen meg (opcionális)
 }
+
+export interface VizMessage {
+    id: number; // MessageID
+    ch: number; // ChannelID
+    from: number; // goroutine id
+    to: number; // goroutine id
+    sendAt: number; // ms
+    recvAt: number; // ms
+    value: RawValue;
+}

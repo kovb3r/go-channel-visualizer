@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { TraceUploadComponent } from './trace-upload/trace-upload.component';
 import { GraphViewComponent } from './graph-view/graph-view.component';
-import { TraceFile, VizLink, VizNode } from './models/trace.model';
+import { TraceFile, VizLink, VizNode, VizMessage } from './models/trace.model';
 import { TraceParserService } from './services/trace-parser.service';
 
 @Component({
@@ -24,6 +24,9 @@ export class AppComponent implements OnDestroy {
   // A kirajzoláshoz szükséges adatok (gyerek komponens bemenetei)
   allNodes: VizNode[] = [];
   allLinks: VizLink[] = [];
+  allMessages: VizMessage[] = [];
+
+  // lejátszó állapot
   clock = 0;
   realDuration = 0; // trace valós hossza (ms)
   filmDuration = 0; // UI / slider hossza (ms) -> alapból 30s
@@ -51,9 +54,11 @@ export class AppComponent implements OnDestroy {
       this.allNodes = viz.nodes;
       this.allLinks = viz.links;
 
+      this.allMessages = this.parser.toVizMessages(norm);
+
       this.stopPlayback();
       this.clock = 0;
-      this.syncRealClockFromFilmClock;
+      this.syncRealClockFromFilmClock();
 
       // fejlesztéshez:
       console.log('viz graph:', viz);
@@ -69,9 +74,10 @@ export class AppComponent implements OnDestroy {
     const v = Number(input.value);
 
     this.clock = Number.isFinite(v) ? v : 0;
-    this.syncRealClockFromFilmClock;
+    this.syncRealClockFromFilmClock();
   }
 
+  /*
   // a clock alapján szűrjük, mi látszódjon
   applyClock() {
     const t = this.clock;
@@ -90,7 +96,7 @@ export class AppComponent implements OnDestroy {
 
     this.allNodes = visibleNodes;
     this.allLinks = visibleLinks;
-  }
+  }*/
 
   // ===== vezérlők =====
   togglePlay(): void {

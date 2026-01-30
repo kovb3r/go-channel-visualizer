@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import * as d3 from 'd3';
-import { VizLink, VizNode } from '../models/trace.model';
+import { VizLink, VizNode, VizMessage } from '../models/trace.model';
 
 @Component({
   selector: 'app-graph-view',
@@ -22,6 +22,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   // Bemeneti adatok: csomópontok és élek a vizualizációhoz
   @Input() nodes: VizNode[] = [];
   @Input() links: VizLink[] = [];
+  @Input() messages: VizMessage[] = [];
   @Input() clock = 0;
 
   // Hivatkozás az SVG elemre a sablonból
@@ -31,6 +32,13 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   private svg!: d3.Selection<SVGSVGElement, unknown, null, undefined>;
   private gLinks!: d3.Selection<SVGGElement, unknown, null, undefined>;
   private gNodes!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private gMsgs!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private msgSel!: d3.Selection<
+    SVGTextElement,
+    VizMessage,
+    SVGGElement,
+    unknown
+  >;
   private gViewport!: d3.Selection<SVGGElement, unknown, null, undefined>;
   private linkSel!: d3.Selection<SVGLineElement, SimLink, SVGGElement, unknown>;
   private nodeSel!: d3.Selection<SVGGElement, SimNode, SVGGElement, unknown>;
@@ -69,10 +77,11 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   // Input változások figyelése: ha a nézet kész, újrarajzolunk
   ngOnChanges(ch: SimpleChanges): void {
     if (!this.viewReady) return;
-    if (ch['nodes'] || ch['links']) {
+    if (ch['nodes'] || ch['links'] || ch['messages']) {
       this.draw();
     } else if (ch['clock']) {
       this.applyVisibility();
+      this.updateMessagePositions();
     }
   }
 
@@ -107,6 +116,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     // két csoport létrehozása: élek és csomópontok
     this.gLinks = this.gViewport.append('g').attr('class', 'links');
     this.gNodes = this.gViewport.append('g').attr('class', 'nodes');
+    this.gMsgs = this.gViewport.append('g').attr('class', 'messages');
   }
 
   // Fő rajzoló függvény: létrehozza / frissíti a szimulációt, éleket, node-okat
@@ -156,7 +166,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       .force('center', d3.forceCenter(this.width / 2, this.height / 2))
       .force(
         'charge',
-        d3.forceManyBody<SimNode>().strength(-600).distanceMax(1000)
+        d3.forceManyBody<SimNode>().strength(-600).distanceMax(1000),
       )
       .force('collision', d3.forceCollide<SimNode>().radius(30))
       .force('x', d3.forceX<SimNode>(this.width / 2).strength(0.05))
@@ -179,10 +189,10 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       .attr('stroke-width', 2)
       .attr('stroke', (d) => this.channelColor(d.ch) as string) // csatorna szerinti szín
       .attr('opacity', 0.7)
-      .attr('stroke-dasharray', (d: any) => (d.buffered ? '6,4' : null)) // szaggatott, ha buffered
+      .attr('stroke-dasharray', (d: any) => (d.buffered ? '6,4' : null)); // szaggatott, ha buffered
 
     this.linkSel = linkEnter.merge(this.linkSel as any);
-    
+
     // Node-ok SVG elemei: group (g) tartalmaz circle + text
     this.nodeSel = this.gNodes
       .selectAll<SVGGElement, SimNode>('g.node')
@@ -227,6 +237,29 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     // Drag-et mind az enter, mind az update szelekcióra alkalmazzuk
     this.gNodes.selectAll<SVGGElement, SimNode>('g.node').call(dragBehavior);
 
+    // üzenetek (messages) kirajzolása
+    this.msgSel = this.gMsgs
+      .selectAll<SVGTextElement, VizMessage>('text.msg')
+      .data(this.messages ?? [], (d: any) => d.id);
+
+    this.msgSel.exit().remove();
+
+    const msgEnter = this.msgSel
+      .enter()
+      .append('text')
+      .attr('class', 'msg')
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 11)
+      .attr('fill', '#fbbf24')
+      .attr('opacity', 0.95);
+
+    this.msgSel = msgEnter.merge(this.msgSel as any);
+
+    // szöveg beállítása (egyszerű rövidítés)
+    this.msgSel.text((d) => this.formatMsgValue(d.value));
+
+    // induló láthatóság + pozíció
+    this.updateMessagePositions();
     this.applyVisibility();
   }
 
@@ -260,6 +293,15 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       const endsOk = visibleNodeIds.has(sId) && visibleNodeIds.has(tId);
       return timeOk && endsOk ? null : 'none';
     });
+
+    // 3) üzenetek: sendAt <= now <= recvAt
+    if (this.msgSel) {
+      this.msgSel.style('display', (m) => {
+        const s = m.sendAt ?? 0;
+        const r = m.recvAt ?? s;
+        return s <= now && now <= r ? null : 'none';
+      });
+    }
   }
 
   // Tick callback: pozíciók lekorlátozása és SVG frissítése minden lépésben
@@ -270,11 +312,11 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     nodes.forEach((d) => {
       d.x = Math.max(
         margin,
-        Math.min(this.width - margin, d.x ?? this.width / 2)
+        Math.min(this.width - margin, d.x ?? this.width / 2),
       );
       d.y = Math.max(
         margin,
-        Math.min(this.height - margin, d.y ?? this.height / 2)
+        Math.min(this.height - margin, d.y ?? this.height / 2),
       );
     });
 
@@ -290,10 +332,47 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     this.gNodes
       .selectAll<SVGGElement, SimNode>('g.node')
       .attr('transform', (d) => `translate(${d.x},${d.y})`);
+
+    this.updateMessagePositions();
+  }
+
+  private formatMsgValue(v: any): string {
+    if (v === null || v === undefined) return 'null';
+    if (typeof v === 'string') return v.length > 18 ? v.slice(0, 18) + '…' : v;
+    if (typeof v === 'number') return String(v);
+    try {
+      const s = JSON.stringify(v);
+      return s.length > 18 ? s.slice(0, 18) + '…' : s;
+    } catch {
+      return '[obj]';
+    }
+  }
+
+  //üzenetek pozíciója
+  private updateMessagePositions(): void {
+    if (!this.msgSel) return;
+
+    // node id -> node adat (a mostani DOM/data alapján)
+    const nodeById = new Map<number, SimNode>();
+    this.nodeSel.each((d) => nodeById.set(d.id, d));
+
+    this.msgSel
+      .attr('x', (m) => {
+        const a = nodeById.get(m.from);
+        const b = nodeById.get(m.to);
+        if (!a || !b) return 0;
+        return ((a.x ?? 0) + (b.x ?? 0)) / 2;
+      })
+      .attr('y', (m) => {
+        const a = nodeById.get(m.from);
+        const b = nodeById.get(m.to);
+        if (!a || !b) return 0;
+        return ((a.y ?? 0) + (b.y ?? 0)) / 2 - 10; // kicsit a link fölé
+      });
   }
 }
 
-/** —— Lokális típusok a D3 szimulációhoz —— */
+//Lokális típusok a D3 szimulációhoz
 type SimNode = d3.SimulationNodeDatum & {
   id: number;
   label: string;
