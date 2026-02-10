@@ -20,7 +20,7 @@
       ⟲
     </button>
     <button class="btn" (click)="step(-5000)" [disabled]="filmDuration <= 0">
-      -5ms
+      -5s
     </button>
     <button
       class="btn primary"
@@ -29,7 +29,7 @@
       {{ playing ? "Pause" : "Play" }}
     </button>
     <button class="btn" (click)="step(5000)" [disabled]="filmDuration <= 0">
-      +5ms
+      +5s
     </button>
 
     <span class="spacer"></span>
@@ -62,7 +62,12 @@
     [nodes]="allNodes"
     [links]="allLinks"
     [messages]="allMessages"
-    [clock]="clockReal"></app-graph-view>
+    [clockReal]="clockReal"
+    [clockFilm]="clock"
+    [realDuration]="realDuration"
+    [filmDuration]="filmDuration"
+    >
+  </app-graph-view>
 </div>
 
 <router-outlet />

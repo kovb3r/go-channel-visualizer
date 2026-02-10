@@ -23,7 +23,11 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   @Input() nodes: VizNode[] = [];
   @Input() links: VizLink[] = [];
   @Input() messages: VizMessage[] = [];
-  @Input() clock = 0;
+  @Input() clockReal = 0;
+  @Input() clockFilm = 0;
+  @Input() realDuration = 0;
+  @Input() filmDuration = 0;
+  @Input() msgTravelFilmMs = 800;
 
   // Hivatkozás az SVG elemre a sablonból
   @ViewChild('svgRef', { static: true }) svgRef!: ElementRef<SVGSVGElement>;
@@ -79,7 +83,12 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     if (!this.viewReady) return;
     if (ch['nodes'] || ch['links'] || ch['messages']) {
       this.draw();
-    } else if (ch['clock']) {
+    } else if (
+      ch['clockReal'] ||
+      ch['clockFilm'] ||
+      ch['realDuration'] ||
+      ch['filmDuration']
+    ) {
       this.applyVisibility();
       this.updateMessagePositions();
     }
@@ -264,20 +273,22 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   }
 
   private applyVisibility() {
-    const now = this.clock ?? 0;
+
+    const nowReal = this.clockReal ?? 0;
+    const nowFilm = this.clockFilm ?? 0;
 
     // 1) node láthatóság
     const visibleNodeIds = new Set<number>();
 
     this.nodeSel.style('display', (d) => {
-      const show = (d.appearAt ?? 0) <= now;
+      const show = (d.appearAt ?? 0) <= nowReal;
       if (show) visibleNodeIds.add(d.id);
       return show ? null : 'none';
     });
 
     // 2) link láthatóság: idő + mindkét végpont látszik
     this.linkSel.style('display', (d) => {
-      const timeOk = (d.appearAt ?? 0) <= now;
+      const timeOk = (d.appearAt ?? 0) <= nowReal;
 
       // linkForce tick után source/target SimNode lesz,
       // de a draw pillanatában még string is lehet.
@@ -294,12 +305,14 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       return timeOk && endsOk ? null : 'none';
     });
 
-    // 3) üzenetek: sendAt <= now <= recvAt
+    // 3) üzenetek: sendAt <= now <= sendAt + MSG_TRAVEL_MS
     if (this.msgSel) {
+      const travel = Math.max(1, this.msgTravelFilmMs ?? 800);
       this.msgSel.style('display', (m) => {
-        const s = m.sendAt ?? 0;
-        const r = m.recvAt ?? s;
-        return s <= now && now <= r ? null : 'none';
+        const sendFilm = this.realToFilmMs(m.sendAt ?? 0);
+        return sendFilm <= nowFilm && nowFilm <= sendFilm + travel
+          ? null
+          : 'none';
       });
     }
   }
@@ -338,11 +351,11 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
 
   private formatMsgValue(v: any): string {
     if (v === null || v === undefined) return 'null';
-    if (typeof v === 'string') return v.length > 18 ? v.slice(0, 18) + '…' : v;
+    if (typeof v === 'string') return v.length > 30 ? v.slice(0, 30) + '…' : v;
     if (typeof v === 'number') return String(v);
     try {
       const s = JSON.stringify(v);
-      return s.length > 18 ? s.slice(0, 18) + '…' : s;
+      return s.length > 30 ? s.slice(0, 30) + '…' : s;
     } catch {
       return '[obj]';
     }
@@ -352,23 +365,90 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   private updateMessagePositions(): void {
     if (!this.msgSel) return;
 
-    // node id -> node adat (a mostani DOM/data alapján)
+    const nowFilm = this.clockFilm ?? 0;
+    const travel = Math.max(1, this.msgTravelFilmMs ?? 800);
+
+    const NODE_R = 20;
+    const PAD = 10; // körön kívülre toljuk
+
+    // node id -> aktuális node pozíciók
     const nodeById = new Map<number, SimNode>();
     this.nodeSel.each((d) => nodeById.set(d.id, d));
+
+    const OFFSET = 10;
 
     this.msgSel
       .attr('x', (m) => {
         const a = nodeById.get(m.from);
         const b = nodeById.get(m.to);
         if (!a || !b) return 0;
-        return ((a.x ?? 0) + (b.x ?? 0)) / 2;
+
+        const ax = a.x ?? 0,
+          ay = a.y ?? 0;
+        const bx = b.x ?? 0,
+          by = b.y ?? 0;
+
+        const dx = bx - ax;
+        const dy = by - ay;
+        const dist = Math.hypot(dx, dy) || 1;
+
+        const ux = dx / dist;
+        const uy = dy / dist;
+
+        // normál vektor (lane eltoláshoz)
+        const nx = -uy;
+        const ny = ux;
+
+        // start/end a körökön kívül
+        const startX = ax + ux * (NODE_R + PAD);
+        const startY = ay + uy * (NODE_R + PAD);
+        const endX = bx - ux * (NODE_R + PAD);
+        const endY = by - uy * (NODE_R + PAD);
+
+        const sendFilm = this.realToFilmMs(m.sendAt ?? 0);
+        const t = (nowFilm - sendFilm) / travel;
+        const p = Math.max(0, Math.min(1, t));
+
+        return startX + (endX - startX) * p + nx * OFFSET;
       })
       .attr('y', (m) => {
         const a = nodeById.get(m.from);
         const b = nodeById.get(m.to);
         if (!a || !b) return 0;
-        return ((a.y ?? 0) + (b.y ?? 0)) / 2 - 10; // kicsit a link fölé
+
+        const ax = a.x ?? 0,
+          ay = a.y ?? 0;
+        const bx = b.x ?? 0,
+          by = b.y ?? 0;
+
+        const dx = bx - ax;
+        const dy = by - ay;
+        const dist = Math.hypot(dx, dy) || 1;
+
+        const ux = dx / dist;
+        const uy = dy / dist;
+
+        const nx = -uy;
+        const ny = ux;
+
+        const startX = ax + ux * (NODE_R + PAD);
+        const startY = ay + uy * (NODE_R + PAD);
+        const endX = bx - ux * (NODE_R + PAD);
+        const endY = by - uy * (NODE_R + PAD);
+
+        const sendFilm = this.realToFilmMs(m.sendAt ?? 0);
+        const t = (nowFilm - sendFilm) / travel;
+        const p = Math.max(0, Math.min(1, t));
+
+
+        return startY + (endY - startY) * p + ny * OFFSET;
       });
+  }
+
+  private realToFilmMs(realMs: number): number {
+    if (this.realDuration <= 0 || this.filmDuration <= 0) return realMs;
+    const ratio = this.filmDuration / this.realDuration;
+    return realMs * ratio;
   }
 }
 
