@@ -37,16 +37,23 @@ export class AppComponent implements OnDestroy {
   private rafId: number | null = null;
   private lastFrameTs: number | null = null;
 
-  constructor(private parser: TraceParserService, private zone: NgZone) {}
+  constructor(
+    private parser: TraceParserService,
+    private zone: NgZone,
+  ) {}
 
   /** Feltöltött és alap-validált nyers JSON itt érkezik. */
   onTraceLoaded(raw: TraceFile) {
     try {
       // 1) idő-normalizálás
       const norm = this.parser.toNormalized(raw);
+      const eventsCount = norm.events.length ?? 0;
 
       this.realDuration = Math.max(0, norm.t1 - norm.t0);
-      this.filmDuration = this.computeFilmDuration(this.realDuration);
+      this.filmDuration = this.computeFilmDuration(
+        this.realDuration,
+        eventsCount,
+      );
 
       // 2) viz gráf előállítása
       const viz = this.parser.toVizGraph(norm);
@@ -192,7 +199,10 @@ export class AppComponent implements OnDestroy {
 
   step(deltaFilmMs: number) {
     this.stopPlayback();
-    this.clock = Math.max(0, Math.min(this.filmDuration, this.clock + deltaFilmMs));
+    this.clock = Math.max(
+      0,
+      Math.min(this.filmDuration, this.clock + deltaFilmMs),
+    );
     this.syncRealClockFromFilmClock();
   }
 
@@ -215,13 +225,24 @@ export class AppComponent implements OnDestroy {
   private syncRealClockFromFilmClock(): void {
     this.clockReal = Math.max(
       0,
-      Math.min(this.realDuration, this.filmToReal(this.clock))
+      Math.min(this.realDuration, this.filmToReal(this.clock)),
     );
   }
 
   /** filmidő hossza: alapból 30s, ha a valós trace hosszabb, akkor legyen annyi */
-  private computeFilmDuration(realMs: number): number {
-    const base = 30_000; // 30s
-    return Math.max(base, Math.floor(realMs)); // ha realMs > 30s, arányosan nő (1:1)
+  private computeFilmDuration(realMs: number, eventsCount: number): number {
+    const minFilm = 6_000; // 6s
+    const maxFilm = 60_000; // 60s
+
+    const k = 0.6; // valós idő arány
+    const msPerEvent = 400; // tempó (kisebb = gyorsabb, nagyobb = lassabb)
+
+    const byReal = realMs * k;
+    const byEvents = eventsCount * msPerEvent;
+
+    const base = Math.max(byReal, byEvents);
+    const clamped = Math.max(minFilm, Math.min(maxFilm, Math.floor(base)));
+
+    return clamped;
   }
 }

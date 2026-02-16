@@ -446,8 +446,12 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   }
 
   private realToFilmMs(realMs: number): number {
-    if (this.realDuration <= 0 || this.filmDuration <= 0) return realMs;
-    const ratio = this.filmDuration / this.realDuration;
+    const travel = Math.max(1, this.msgTravelFilmMs ?? 800);
+
+    const usableFilm = Math.max(1, (this.filmDuration ?? 0) - travel);
+
+    if (this.realDuration <= 0 || usableFilm <= 0) return realMs;
+    const ratio = usableFilm / this.realDuration;
     return realMs * ratio;
   }
 }

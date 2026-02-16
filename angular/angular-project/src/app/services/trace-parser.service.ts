@@ -35,6 +35,7 @@ export class TraceParserService {
   // - rendezést alkalmaz az eseményekre küldési idő szerint
   toNormalized(raw: TraceFile): NormalizedTrace {
     const allTimes: number[] = [];
+    const sendTimes: number[] = [];
 
     // csatornák feldolgozása: timestamp -> ms, gyűjtjük a timeokat
     const normChannels = (raw.Channels ?? []).map((ch) => {
@@ -54,6 +55,7 @@ export class TraceParserService {
       const s = this.parseTimeMs(e.SendTime);
       const r = this.parseTimeMs(e.ReceiveTime);
       allTimes.push(s, r);
+      sendTimes.push(s);
       return {
         ch: e.ChannelID,
         msg: e.MessageID,
@@ -71,7 +73,7 @@ export class TraceParserService {
     }
 
     // t0 = legkisebb idő, t1 = legnagyobb idő (ms)
-    const t0 = Math.min(...allTimes);
+    const t0 = sendTimes.length > 0 ? Math.min(...sendTimes) : Math.min(...allTimes);
     const t1 = Math.max(...allTimes);
 
     // események rendezése és normalizálása (t0 levonása)
@@ -82,7 +84,7 @@ export class TraceParserService {
     // csatornák normalizálása (createdAt relatív idő)
     const channels = normChannels.map((c) => ({
       id: c.id,
-      createdAt: c.createdAt - t0,
+      createdAt: Math.max(0, c.createdAt - t0),
       buffered: c.buffered,
       bufferSize: c.bufferSize,
       firstUseAt: c.firstUseAt,
