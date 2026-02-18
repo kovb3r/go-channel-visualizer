@@ -64,7 +64,7 @@ func number2(c wrapper.Channel[int]) {
 
 func main() {
 	// Három típusos csatorna létrehozása: string, name és int
-	c := wrapper.CreateChannel[string](0) // pufferelt csatorna
+	c := wrapper.CreateChannel[string](3) // pufferelt csatorna
 	n := wrapper.CreateChannel[name]()
 	i := wrapper.CreateChannel[int]()
 

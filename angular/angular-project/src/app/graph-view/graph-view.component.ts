@@ -281,14 +281,16 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     const visibleNodeIds = new Set<number>();
 
     this.nodeSel.style('display', (d) => {
-      const show = (d.appearAt ?? 0) <= nowReal;
+      const appearFilm = this.realToFilmMs(d.appearAt ?? 0);
+      const show = appearFilm <= nowFilm;
       if (show) visibleNodeIds.add(d.id);
       return show ? null : 'none';
     });
 
     // 2) link láthatóság: idő + mindkét végpont látszik
     this.linkSel.style('display', (d) => {
-      const timeOk = (d.appearAt ?? 0) <= nowReal;
+
+      const appearFilm = this.realToFilmMs(d.appearAt ?? 0);
 
       // linkForce tick után source/target SimNode lesz,
       // de a draw pillanatában még string is lehet.
@@ -302,7 +304,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
           : (d.target as SimNode).id;
 
       const endsOk = visibleNodeIds.has(sId) && visibleNodeIds.has(tId);
-      return timeOk && endsOk ? null : 'none';
+      return appearFilm <= nowFilm && endsOk ? null : 'none';
     });
 
     // 3) üzenetek: sendAt <= now <= sendAt + MSG_TRAVEL_MS
@@ -310,7 +312,9 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       const travel = Math.max(1, this.msgTravelFilmMs ?? 800);
       this.msgSel.style('display', (m) => {
         const sendFilm = this.realToFilmMs(m.sendAt ?? 0);
-        return sendFilm <= nowFilm && nowFilm <= sendFilm + travel
+        const timeOk = sendFilm <= nowFilm && nowFilm <= sendFilm + travel;
+        const endsOk = visibleNodeIds.has(m.from) && visibleNodeIds.has(m.to);
+        return timeOk && endsOk
           ? null
           : 'none';
       });

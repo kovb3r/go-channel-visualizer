@@ -231,7 +231,7 @@ export class AppComponent implements OnDestroy {
 
   /** filmidő hossza: alapból 30s, ha a valós trace hosszabb, akkor legyen annyi */
   private computeFilmDuration(realMs: number, eventsCount: number): number {
-    const minFilm = 6_000; // 6s
+    const minFilm = 2_000; // 2s
     const maxFilm = 60_000; // 60s
 
     const k = 0.6; // valós idő arány
