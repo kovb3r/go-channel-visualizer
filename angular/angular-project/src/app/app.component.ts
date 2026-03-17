@@ -28,6 +28,7 @@ export class AppComponent implements OnDestroy {
   allLinks: VizLink[] = [];
   allMessages: VizMessage[] = [];
 
+  eventFilmMs: number[] = [];
   eventMarkers: EventMarker[] = [];
   sliderThumbPx = 16; // kb. a range thumb szélessége
 
@@ -69,6 +70,8 @@ export class AppComponent implements OnDestroy {
       this.allLinks = viz.links;
 
       this.allMessages = this.parser.toVizMessages(norm);
+
+      this.eventFilmMs = this.buildEventFilmMs();
 
       this.stopPlayback();
       this.clock = 0;
@@ -218,6 +221,32 @@ export class AppComponent implements OnDestroy {
     this.speed = v;
   }
 
+  // előző eseményre ugrás
+  jumpPrevEvent(): void {
+    if (!this.eventFilmMs.length) return;
+
+    const i = this.findPrevEventIndex(this.clock);
+    this.clock = this.eventFilmMs[i];
+    this.syncRealClockFromFilmClock();
+
+    if (this.playing) {
+      this.lastFrameTs = null; 
+    }
+  }
+
+  // következő eseményre ugrás
+  jumpNextEvent(): void {
+    if (!this.eventFilmMs.length) return;
+
+    const i = this.findNextEventIndex(this.clock);
+    this.clock = this.eventFilmMs[i];
+    this.syncRealClockFromFilmClock();
+
+    if (this.playing) {
+      this.lastFrameTs = null;
+    }
+  }
+
   ngOnDestroy(): void {
     this.pause();
   }
@@ -291,5 +320,62 @@ export class AppComponent implements OnDestroy {
       counts.set(key, idx + 1);
       return { leftPct: pct, stackIndex: idx };
     });
+  }
+
+  // sendAt-ok (real ms) -> film ms, kerekítve, duplikátum nélkül, rendezve
+  private buildEventFilmMs(): number[] {
+    if (!this.allMessages?.length) return [];
+    if (this.realDuration <= 0 || this.filmDuration <= 0) return [];
+
+    const travel = Math.max(1, this.msgTravelFilmMs ?? 800);
+    const usableFilm = Math.max(1, this.filmDuration - travel);
+    const ratio = usableFilm / this.realDuration;
+
+    const times = this.allMessages.map((m) => {
+      const sendReal = m.sendAt ?? 0; // valós ms (t0-hoz képest)
+      const sendFilm = sendReal * ratio; // film ms
+      return Math.max(0, Math.min(usableFilm, Math.ceil(sendFilm))); // EGÉSZ ms!
+    });
+
+    // duplikátumok kiszedése + rendezés
+    return Array.from(new Set(times)).sort((a, b) => a - b);
+  }
+
+  // legnagyobb index, ahol eventFilmMs[idx] < currentClock (szigorúan előző)
+  private findPrevEventIndex(currentClock: number): number {
+    const arr = this.eventFilmMs;
+    let lo = 0,
+      hi = arr.length - 1;
+    let ans = 0;
+
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (arr[mid] < currentClock) {
+        ans = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return ans;
+  }
+
+  // legkisebb index, ahol eventFilmMs[idx] > currentClock (szigorúan következő)
+  private findNextEventIndex(currentClock: number): number {
+    const arr = this.eventFilmMs;
+    let lo = 0,
+      hi = arr.length - 1;
+    let ans = arr.length - 1;
+
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (arr[mid] > currentClock) {
+        ans = mid;
+        hi = mid - 1;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    return ans;
   }
 }

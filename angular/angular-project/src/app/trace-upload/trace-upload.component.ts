@@ -75,7 +75,7 @@ export class TraceUploadComponent {
       this.loaded.emit(data); // sikeres betöltés: esemény küldése a szülő komponensnek
     } catch (e: any) {
       // Hibakezelés: üzenet megjelenítése a felhasználónak
-      this.error = e?.message ?? 'Ismeretlen hiba a fájl feldolgozásakor.';
+      this.error = e?.message ?? 'Unknown error while processing the file.';
     } finally {
       // Ugyanazt a fájlt újra lehessen kiválasztani: input értékének törlése
       (evt.target as HTMLInputElement).value = '';
@@ -88,21 +88,21 @@ export class TraceUploadComponent {
       const obj = JSON.parse(text);
       return obj as TraceFile;
     } catch {
-      // Ha nem JSON, dobunk egy hibát, amit a hívó kezel
-      throw new Error('A fájl nem érvényes JSON.');
+      // If not valid JSON, throw an error for the caller to handle
+      throw new Error('The file is not valid JSON.');
     }
   }
 
   // Alapvető struktúraellenőrzés a betöltött objektumon
   private basicValidate(data: TraceFile) {
     if (!data || typeof data !== 'object') {
-      throw new Error('A fájl nem a várt objektumot tartalmazza.');
+      throw new Error('The file does not contain the expected object.');
     }
     if (!Array.isArray(data.Channels)) {
-      throw new Error('Hiányzik a Channels tömb.');
+      throw new Error('Missing Channels array.');
     }
     if (!Array.isArray(data.Events)) {
-      throw new Error('Hiányzik az Events tömb.');
+      throw new Error('Missing Events array.');
     }
     
     // Ellenőrizzük a Channels tömb első elemének szerkezetét
@@ -111,7 +111,7 @@ export class TraceUploadComponent {
         typeof ch.channelId !== 'number' ||
         typeof ch.timestamp !== 'string'
       ) {
-        throw new Error('A Channels egyes elemei nem a várt formátumúak.');
+        throw new Error('Some Channels entries are not in the expected format.');
       }
       break; // csak az első elem ellenőrzése a gyors alapellenőrzéshez
     }
@@ -126,7 +126,7 @@ export class TraceUploadComponent {
         typeof ev.SendTime !== 'string' ||
         typeof ev.ReceiveTime !== 'string'
       ) {
-        throw new Error('Az Events egyes elemei nem a várt formátumúak.');
+        throw new Error('Some Events entries are not in the expected format.');
       }
       break; // csak az első elem ellenőrzése elég az alapvalidáláshoz
     }

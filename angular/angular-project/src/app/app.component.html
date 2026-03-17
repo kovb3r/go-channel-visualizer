@@ -7,7 +7,7 @@
 <!-- Timeline / csúszka -->
 <div class="timeline-bar" *ngIf="filmDuration > 0">
   <div class="timeline-row">
-    <span class="timeline-label">Idő:</span>
+    <span class="timeline-label">Time:</span>
     <span class="timeline-value"
       >Film: {{ clock | number: "1.0-0" }} ms /
       {{ filmDuration | number: "1.0-0" }} ms &nbsp;|&nbsp; Valós:
@@ -20,8 +20,11 @@
     <button class="btn" (click)="restart()" [disabled]="filmDuration <= 0">
       ⟲
     </button>
-    <button class="btn" (click)="step(-1000)" [disabled]="filmDuration <= 0">
-      -1s
+    <button
+      class="btn"
+      (click)="jumpPrevEvent()"
+      [disabled]="filmDuration <= 0">
+      ◀ Prev event
     </button>
     <button
       class="btn primary"
@@ -29,8 +32,11 @@
       [disabled]="filmDuration <= 0">
       {{ playing ? "Pause" : "Play" }}
     </button>
-    <button class="btn" (click)="step(1000)" [disabled]="filmDuration <= 0">
-      +1s
+    <button
+      class="btn"
+      (click)="jumpNextEvent()"
+      [disabled]="filmDuration <= 0">
+      Next event ▶
     </button>
 
     <span class="spacer"></span>
@@ -52,9 +58,7 @@
       class="event-marker"
       *ngFor="let m of eventMarkers"
       [style.left]="markerLeft(m.leftPct)"
-      [style.transform]="
-        'translate(-50%)'
-      "></span>
+      [style.transform]="'translate(-50%)'"></span>
 
     <input
       class="timeline-slider"

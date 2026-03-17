@@ -1,7 +1,7 @@
 <div class="uploader">
     <div class="row">
         <button class="btn" (click)="onPickFileClick(fileInput)">
-            JSON feltöltése
+            upload JSON file
         </button>
         <input
             #fileInput
@@ -12,11 +12,11 @@
     </div>
 
     <div class="meta" *ngIf="fileName && !error">
-        <div><strong>Fájl:</strong> {{ fileName }}</div>
-        <div><strong>Méret:</strong> {{ fileSize ?? 0 | number }} B</div>
+        <div><strong>File:</strong> {{ fileName }}</div>
+        <div><strong>Size:</strong> {{ fileSize ?? 0 | number }} B</div>
         <div *ngIf="summary">
-            <strong>Tartalom:</strong>
-            {{ summary.channels }} csatorna, {{ summary.events }} esemény
+            <strong>Content:</strong>
+            {{ summary.channels }} channel, {{ summary.events }} event
         </div>
     </div>
 
