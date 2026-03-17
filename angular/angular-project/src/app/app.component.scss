@@ -81,6 +81,28 @@
     border-radius: 8px;
 }
 
+.slider-wrap {
+    position: relative;
+    width: 100%;
+    padding-top: 10px; // legyen hely a pontoknak
+}
+
+.timeline-slider {
+    width: 100%;
+    display: block;
+}
+
+.event-marker {
+    position: absolute;
+    top: 15px;               // a slider track környéke
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #facc15;     // sárga
+    box-shadow: 0 0 0 2px #0a0f1c; // kis “kivágás” a sötét háttérbe
+    pointer-events: none;    // ne akadályozza a slider húzást
+}
+
 /*
 .graph-wrap {
 }*/

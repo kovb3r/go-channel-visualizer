@@ -6,6 +6,8 @@ import { GraphViewComponent } from './graph-view/graph-view.component';
 import { TraceFile, VizLink, VizNode, VizMessage } from './models/trace.model';
 import { TraceParserService } from './services/trace-parser.service';
 
+type EventMarker = { leftPct: number; stackIndex: number };
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -25,6 +27,11 @@ export class AppComponent implements OnDestroy {
   allNodes: VizNode[] = [];
   allLinks: VizLink[] = [];
   allMessages: VizMessage[] = [];
+
+  eventMarkers: EventMarker[] = [];
+  sliderThumbPx = 16; // kb. a range thumb szélessége
+
+  msgTravelFilmMs = 800;
 
   // lejátszó állapot
   clock = 0;
@@ -66,6 +73,7 @@ export class AppComponent implements OnDestroy {
       this.stopPlayback();
       this.clock = 0;
       this.syncRealClockFromFilmClock();
+      this.rebuildEventMarkers();
 
       // fejlesztéshez:
       console.log('viz graph:', viz);
@@ -214,6 +222,12 @@ export class AppComponent implements OnDestroy {
     this.pause();
   }
 
+  markerLeft(pct: number): string {
+    const thumb = this.sliderThumbPx; // px
+    // (100% - thumb) sávon mozog a thumb közepe, ezért így pozicionálunk
+    return `calc(${thumb / 2}px + (100% - ${thumb}px) * ${pct / 100})`;
+  }
+
   /** filmidő -> valós idő (ms) lineáris skálázással */
   private filmToReal(filmMs: number): number {
     if (this.filmDuration <= 0 || this.realDuration <= 0) return 0;
@@ -244,5 +258,38 @@ export class AppComponent implements OnDestroy {
     const clamped = Math.max(minFilm, Math.min(maxFilm, Math.floor(base)));
 
     return clamped;
+  }
+
+  private realToFilmMsForSend(realMs: number): number {
+    const travel = Math.max(1, this.msgTravelFilmMs);
+    const usableFilm = Math.max(1, this.filmDuration - travel);
+
+    if (this.realDuration <= 0) return 0;
+    const ratio = usableFilm / this.realDuration;
+    return realMs * ratio; // film ms
+  }
+
+  private rebuildEventMarkers(): void {
+    if (this.filmDuration <= 0 || this.realDuration <= 0) {
+      this.eventMarkers = [];
+      return;
+    }
+
+    // MINDEN üzenet sendAt pillanatát jelöljük
+    const rawPercents = (this.allMessages ?? []).map((m) => {
+      const sendReal = m.sendAt ?? 0; // valós ms (t0-hoz képest)
+      const sendFilm = this.realToFilmMsForSend(sendReal); // film ms (usableFilm skála)
+      const pct = (sendFilm / this.filmDuration) * 100; // 0..100
+      return Math.max(0, Math.min(100, pct));
+    });
+
+    // stacking: ha ugyanoda esik több, tegyük egymás fölé (nem dobunk el semmit!)
+    const counts = new Map<string, number>();
+    this.eventMarkers = rawPercents.map((pct) => {
+      const key = pct.toFixed(3); // elég finom, nem von össze “véletlenül”
+      const idx = counts.get(key) ?? 0;
+      counts.set(key, idx + 1);
+      return { leftPct: pct, stackIndex: idx };
+    });
   }
 }
