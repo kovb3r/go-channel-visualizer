@@ -213,7 +213,8 @@ export class AppComponent implements OnDestroy {
     if (!this.eventFilmMs.length) return;
 
     const i = this.findPrevEventIndex(this.clock);
-    this.clock = this.eventFilmMs[i];
+
+    this.clock = i === -1 ? 0 : this.eventFilmMs[i];
     this.syncRealClockFromFilmClock();
 
     if (this.playing) {
@@ -226,7 +227,8 @@ export class AppComponent implements OnDestroy {
     if (!this.eventFilmMs.length) return;
 
     const i = this.findNextEventIndex(this.clock);
-    this.clock = this.eventFilmMs[i];
+
+    this.clock = i === -1 ? this.filmDuration : this.eventFilmMs[i];
     this.syncRealClockFromFilmClock();
 
     if (this.playing) {
@@ -265,7 +267,7 @@ export class AppComponent implements OnDestroy {
     const maxFilm = 60_000; // 60s
 
     const k = 0.6; // valós idő arány
-    const msPerEvent = 400; // tempó (kisebb = gyorsabb, nagyobb = lassabb)
+    const msPerEvent = 1000; // tempó (kisebb = gyorsabb, nagyobb = lassabb)
 
     const byReal = realMs * k;
     const byEvents = eventsCount * msPerEvent;
@@ -278,7 +280,7 @@ export class AppComponent implements OnDestroy {
 
   private realToFilmMsForSend(realMs: number): number {
     const travel = Math.max(1, this.msgTravelFilmMs);
-    const usableFilm = Math.max(1, this.filmDuration - travel);
+    const usableFilm = Math.max(1, this.filmDuration - travel - 1);
 
     if (this.realDuration <= 0) return 0;
     const ratio = usableFilm / this.realDuration;
@@ -333,7 +335,7 @@ export class AppComponent implements OnDestroy {
     const arr = this.eventFilmMs;
     let lo = 0,
       hi = arr.length - 1;
-    let ans = 0;
+    let ans = -1;
 
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
@@ -344,6 +346,7 @@ export class AppComponent implements OnDestroy {
         hi = mid - 1;
       }
     }
+
     return ans;
   }
 
@@ -352,7 +355,7 @@ export class AppComponent implements OnDestroy {
     const arr = this.eventFilmMs;
     let lo = 0,
       hi = arr.length - 1;
-    let ans = arr.length - 1;
+    let ans = -1;
 
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
@@ -363,6 +366,7 @@ export class AppComponent implements OnDestroy {
         lo = mid + 1;
       }
     }
+
     return ans;
   }
 }
