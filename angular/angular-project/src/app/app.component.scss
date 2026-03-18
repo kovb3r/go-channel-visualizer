@@ -103,6 +103,15 @@
     pointer-events: none;    // ne akadályozza a slider húzást
 }
 
-/*
-.graph-wrap {
-}*/
+.chk {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 14px;
+    font-size: 13px;
+    opacity: 0.9;
+}
+
+.chk input {
+    transform: translateY(1px);
+}

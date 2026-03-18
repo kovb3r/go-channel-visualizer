@@ -31,3 +31,7 @@ svg {
     color: #64748b;
     pointer-events: none;
 }
+
+.arrived-group {
+  pointer-events: none; // ne zavarja a drag-et
+}

@@ -51,6 +51,14 @@
         <option [value]="5000">5x</option>
       </select>
     </label>
+
+    <label class="chk">
+      <input
+        type="checkbox"
+        [checked]="showArrived"
+        (change)="onShowArrivedChange($event)" />
+      Show arrived messages
+    </label>
   </div>
 
   <div class="slider-wrap">
@@ -80,7 +88,9 @@
     [clockReal]="clockReal"
     [clockFilm]="clock"
     [realDuration]="realDuration"
-    [filmDuration]="filmDuration">
+    [filmDuration]="filmDuration"
+    [showArrived]="showArrived"
+    [msgTravelFilmMs]="msgTravelFilmMs">
   </app-graph-view>
 </div>
 

@@ -34,6 +34,8 @@ export class AppComponent implements OnDestroy {
 
   msgTravelFilmMs = 800;
 
+  showArrived = false;
+
   // lejátszó állapot
   clock = 0;
   realDuration = 0; // trace valós hossza (ms)
@@ -95,26 +97,11 @@ export class AppComponent implements OnDestroy {
     this.syncRealClockFromFilmClock();
   }
 
-  /*
-  // a clock alapján szűrjük, mi látszódjon
-  applyClock() {
-    const t = this.clock;
-
-    // látható node-ok
-    const visibleNodes = this.allNodes.filter((n) => (n.appearAt ?? 0) <= t);
-    const visibleIds = new Set(visibleNodes.map((n) => n.id));
-
-    // látható linkek: appearAt + csak akkor, ha mindkét végpont látható
-    const visibleLinks = this.allLinks.filter(
-      (l) =>
-        (l.appearAt ?? 0) <= t &&
-        visibleIds.has(l.source) &&
-        visibleIds.has(l.target)
-    );
-
-    this.allNodes = visibleNodes;
-    this.allLinks = visibleLinks;
-  }*/
+  // checkbox change handler
+  onShowArrivedChange(evt: Event) {
+    const input = evt.target as HTMLInputElement;
+    this.showArrived = input.checked;
+  }
 
   // ===== vezérlők =====
   togglePlay(): void {
@@ -230,7 +217,7 @@ export class AppComponent implements OnDestroy {
     this.syncRealClockFromFilmClock();
 
     if (this.playing) {
-      this.lastFrameTs = null; 
+      this.lastFrameTs = null;
     }
   }
 

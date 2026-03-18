@@ -11,6 +11,8 @@ import { CommonModule } from '@angular/common';
 import * as d3 from 'd3';
 import { VizLink, VizNode, VizMessage } from '../models/trace.model';
 
+type ArrivedGroup = { to: number; lines: string[] };
+
 @Component({
   selector: 'app-graph-view',
   standalone: true,
@@ -28,6 +30,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
   @Input() realDuration = 0;
   @Input() filmDuration = 0;
   @Input() msgTravelFilmMs = 800;
+  @Input() showArrived = false;
 
   // Hivatkozás az SVG elemre a sablonból
   @ViewChild('svgRef', { static: true }) svgRef!: ElementRef<SVGSVGElement>;
@@ -49,6 +52,14 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
 
   // D3 force simulation példány
   private sim!: d3.Simulation<SimNode, SimLink>;
+
+  private gArrived!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private arrivedSel!: d3.Selection<
+    SVGGElement,
+    ArrivedGroup,
+    SVGGElement,
+    unknown
+  >;
 
   // Canvas méretek
   private width = 1000;
@@ -87,10 +98,12 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       ch['clockReal'] ||
       ch['clockFilm'] ||
       ch['realDuration'] ||
-      ch['filmDuration']
+      ch['filmDuration'] ||
+      ch['showArrived']
     ) {
       this.applyVisibility();
       this.updateMessagePositions();
+      this.updateArrivedLists();
     }
   }
 
@@ -126,6 +139,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     this.gLinks = this.gViewport.append('g').attr('class', 'links');
     this.gNodes = this.gViewport.append('g').attr('class', 'nodes');
     this.gMsgs = this.gViewport.append('g').attr('class', 'messages');
+    this.gArrived = this.gViewport.append('g').attr('class', 'arrived');
   }
 
   // Fő rajzoló függvény: létrehozza / frissíti a szimulációt, éleket, node-okat
@@ -270,10 +284,10 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     // induló láthatóság + pozíció
     this.updateMessagePositions();
     this.applyVisibility();
+    this.updateArrivedLists();
   }
 
   private applyVisibility() {
-
     const nowReal = this.clockReal ?? 0;
     const nowFilm = this.clockFilm ?? 0;
 
@@ -289,7 +303,6 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
 
     // 2) link láthatóság: idő + mindkét végpont látszik
     this.linkSel.style('display', (d) => {
-
       const appearFilm = this.realToFilmMs(d.appearAt ?? 0);
 
       // linkForce tick után source/target SimNode lesz,
@@ -314,9 +327,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
         const sendFilm = this.realToFilmMs(m.sendAt ?? 0);
         const timeOk = sendFilm <= nowFilm && nowFilm <= sendFilm + travel;
         const endsOk = visibleNodeIds.has(m.from) && visibleNodeIds.has(m.to);
-        return timeOk && endsOk
-          ? null
-          : 'none';
+        return timeOk && endsOk ? null : 'none';
       });
     }
   }
@@ -351,6 +362,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
       .attr('transform', (d) => `translate(${d.x},${d.y})`);
 
     this.updateMessagePositions();
+    this.updateArrivedPositionsOnly();
   }
 
   private formatMsgValue(v: any): string {
@@ -363,6 +375,113 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
     } catch {
       return '[obj]';
     }
+  }
+
+  private updateArrivedLists(): void {
+    if (!this.gArrived) return;
+
+    // ha nincs bepipálva, töröljük/elrejtjük
+    if (!this.showArrived) {
+      this.gArrived.selectAll('*').remove();
+      return;
+    }
+
+    const nowFilm = this.clockFilm ?? 0;
+    const travel = Math.max(1, this.msgTravelFilmMs ?? 800);
+
+    // node id -> pozíció (csak a jelenlegi nodeSel alapján)
+    const nodeById = new Map<number, SimNode>();
+    this.nodeSel?.each((d) => nodeById.set(d.id, d));
+
+    // receiver -> megérkezett üzenetek listája
+    const byTo = new Map<number, string[]>();
+
+    for (const m of this.messages ?? []) {
+      const sendFilm = this.realToFilmMs(m.sendAt ?? 0);
+      const arriveFilm = sendFilm + travel;
+
+      // "megérkezett", amikor az animációban is már megérkezett:
+      if (nowFilm >= arriveFilm) {
+        const arr = byTo.get(m.to) ?? [];
+        arr.push(this.formatMsgValue(m.value));
+        byTo.set(m.to, arr);
+      }
+    }
+
+    const data: ArrivedGroup[] = Array.from(byTo.entries())
+      .filter(([to]) => nodeById.has(to)) // csak ha a node is létezik
+      .map(([to, lines]) => ({ to, lines }));
+
+    // group per receiver
+    const sel = this.gArrived
+      .selectAll<SVGGElement, ArrivedGroup>('g.arrived-group')
+      .data(data, (d: any) => d.to);
+
+    sel.exit().remove();
+
+    const enter = sel.enter().append('g').attr('class', 'arrived-group');
+
+    // egy "text" elem a groupban, tspans-szal soronként
+    enter
+      .append('text')
+      .attr('class', 'arrived-text')
+      .attr('text-anchor', 'middle')
+      .attr('font-size', 10)
+      .attr('fill', '#fbbf24')
+      .attr('opacity', 0.95);
+
+    this.arrivedSel = enter.merge(sel as any);
+
+    // pozíció + szöveg frissítése
+    const LINE_H = 12;
+    const TOP_PAD = 28; // a node fölé
+
+    this.arrivedSel.each((d, i, nodes) => {
+      const g = d3.select(nodes[i]);
+      const n = nodeById.get(d.to);
+      if (!n) return;
+
+      // group pozíciója: a node fölé
+      const x = n.x ?? 0;
+      const y = (n.y ?? 0) - TOP_PAD;
+
+      g.attr('transform', `translate(${x},${y})`);
+
+      const text = g.select<SVGTextElement>('text.arrived-text');
+
+      // tspans újraépítése
+      text.selectAll('tspan').remove();
+
+      d.lines.forEach((line, idx) => {
+        text
+          .append('tspan')
+          .attr('x', 0)
+          .attr('dy', idx === 0 ? 0 : LINE_H)
+          .text(line);
+      });
+    });
+  }
+
+  private updateArrivedPositionsOnly(): void {
+    if (!this.showArrived) return;
+    if (!this.arrivedSel) return;
+
+    // node id -> aktuális pozíciók
+    const nodeById = new Map<number, SimNode>();
+    this.nodeSel.each((d) => nodeById.set(d.id, d));
+
+    const TOP_PAD = 28;
+
+    this.arrivedSel.each((d, i, nodes) => {
+      const g = d3.select(nodes[i]);
+      const n = nodeById.get(d.to);
+      if (!n) return;
+
+      const x = n.x ?? 0;
+      const y = (n.y ?? 0) - TOP_PAD;
+
+      g.attr('transform', `translate(${x},${y})`);
+    });
   }
 
   //üzenetek pozíciója
@@ -443,7 +562,6 @@ export class GraphViewComponent implements OnChanges, AfterViewInit {
         const sendFilm = this.realToFilmMs(m.sendAt ?? 0);
         const t = (nowFilm - sendFilm) / travel;
         const p = Math.max(0, Math.min(1, t));
-
 
         return startY + (endY - startY) * p + ny * OFFSET;
       });
