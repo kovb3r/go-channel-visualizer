@@ -9,7 +9,8 @@
   <div class="timeline-row">
     <span class="timeline-label">Time:</span>
     <span class="timeline-value"
-      >
+      >Film: {{ clock | number: "1.0-0" }} ms /
+      {{ filmDuration | number: "1.0-0" }} ms &nbsp;|&nbsp;  Real:
       {{ clockReal | number: "1.0-0" }} ms /
       {{ realDuration | number: "1.0-0" }} ms
     </span>
@@ -42,13 +43,14 @@
 
     <label class="speed">
       Speed:
-      <select (change)="setSpeed(+$any($event.target).value)" [value]="speed">
-        <option [value]="200">0.2x</option>
-        <option [value]="500">0.5x</option>
-        <option [value]="1000">1x</option>
-        <option [value]="2000">2x</option>
-        <option [value]="5000">5x</option>
-      </select>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        [value]="speedSlider"
+        (input)="onSpeedInput($event)" />
+      <span class="speed-value"> {{ speed / 1000 | number: "1.1-2" }}x </span>
     </label>
 
     <label class="chk">

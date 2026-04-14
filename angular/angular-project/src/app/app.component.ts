@@ -42,7 +42,12 @@ export class AppComponent implements OnDestroy {
   filmDuration = 0; // UI / slider hossza (ms) -> alapból 30s
   clockReal = 0; // valós óra (ms) -> ezt kapja a graph-view
   playing = false;
-  speed = 500;
+  speed = 1000; // film ms / sec, azaz 1000 = 1x, 2000 = 2x, 500 = 0.5x, stb.
+  speedSlider = 50; // 0..100; közép = 1x
+
+  private readonly MIN_SPEED_FACTOR = 0.01; // bal szélen 0.01x
+  private readonly MAX_SPEED_FACTOR = 20; // jobb szélen 20x
+  private readonly FIXED_FILM_MS = 15_000;
 
   private rafId: number | null = null;
   private lastFrameTs: number | null = null;
@@ -51,6 +56,10 @@ export class AppComponent implements OnDestroy {
     private parser: TraceParserService,
     private zone: NgZone,
   ) {}
+
+  get speedFactor(): number {
+    return this.speed / 1000;
+  }
 
   /** Feltöltött és alap-validált nyers JSON itt érkezik. */
   onTraceLoaded(raw: TraceFile) {
@@ -76,6 +85,7 @@ export class AppComponent implements OnDestroy {
       this.eventFilmMs = this.buildEventFilmMs();
 
       this.stopPlayback();
+      this.setSpeed(1000); // reset speed
       this.clock = 0;
       this.syncRealClockFromFilmClock();
       this.rebuildEventMarkers();
@@ -204,8 +214,58 @@ export class AppComponent implements OnDestroy {
     this.syncRealClockFromFilmClock();
   }
 
+  onSpeedInput(evt: Event) {
+    const input = evt.target as HTMLInputElement;
+    const sliderValue = Number(input.value);
+
+    if (!Number.isFinite(sliderValue)) return;
+
+    this.speedSlider = Math.max(0, Math.min(100, Math.round(sliderValue)));
+    const factor = this.sliderToFactor(this.speedSlider);
+    this.speed = Math.round(factor * 1000);
+  }
+
+  private sliderToFactor(slider: number): number {
+    const s = Math.max(0, Math.min(100, slider));
+
+    // 0..50  => 0.01x .. 1x
+    if (s <= 50) {
+      const t = s / 50;
+      return this.MIN_SPEED_FACTOR * Math.pow(1 / this.MIN_SPEED_FACTOR, t);
+    }
+
+    // 50..100 => 1x .. 20x
+    const t = (s - 50) / 50;
+    return Math.pow(this.MAX_SPEED_FACTOR, t);
+  }
+
+  private factorToSlider(factor: number): number {
+    const f = Math.max(
+      this.MIN_SPEED_FACTOR,
+      Math.min(this.MAX_SPEED_FACTOR, factor),
+    );
+
+    // 0.01x .. 1x
+    if (f <= 1) {
+      const t =
+        Math.log(f / this.MIN_SPEED_FACTOR) /
+        Math.log(1 / this.MIN_SPEED_FACTOR);
+      return Math.round(t * 50);
+    }
+
+    // 1x .. 20x
+    const t = Math.log(f) / Math.log(this.MAX_SPEED_FACTOR);
+    return Math.round(50 + t * 50);
+  }
+
   setSpeed(v: number) {
-    this.speed = v;
+    const factor = Math.max(
+      this.MIN_SPEED_FACTOR,
+      Math.min(this.MAX_SPEED_FACTOR, v / 1000),
+    );
+
+    this.speed = Math.round(factor * 1000);
+    this.speedSlider = this.factorToSlider(factor);
   }
 
   // előző eseményre ugrás
@@ -261,21 +321,9 @@ export class AppComponent implements OnDestroy {
     );
   }
 
-  /** filmidő hossza: alapból 30s, ha a valós trace hosszabb, akkor legyen annyi */
-  private computeFilmDuration(realMs: number, eventsCount: number): number {
-    const minFilm = 2_000; // 2s
-    const maxFilm = 60_000; // 60s
-
-    const k = 0.6; // valós idő arány
-    const msPerEvent = 1000; // tempó (kisebb = gyorsabb, nagyobb = lassabb)
-
-    const byReal = realMs * k;
-    const byEvents = eventsCount * msPerEvent;
-
-    const base = Math.max(byReal, byEvents);
-    const clamped = Math.max(minFilm, Math.min(maxFilm, Math.floor(base)));
-
-    return clamped;
+  /** Minden trace fixen 15 másodperces filmidőt kap. */
+  private computeFilmDuration(_realMs: number, _eventsCount: number): number {
+    return this.FIXED_FILM_MS;
   }
 
   private realToFilmMsForSend(realMs: number): number {

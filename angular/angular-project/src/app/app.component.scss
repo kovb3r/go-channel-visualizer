@@ -115,3 +115,19 @@
 .chk input {
     transform: translateY(1px);
 }
+
+.speed {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.speed input[type="range"] {
+    width: 220px;
+}
+
+.speed-value {
+    display: inline-block;
+    min-width: 56px;
+    text-align: right;
+}
