@@ -1,0 +1,117 @@
+{
+  "Channels": [
+    {
+      "bufferSize": 3,
+      "buffered": true,
+      "channelId": 1,
+      "timestamp": "2026-04-14T20:08:21.0909964+02:00"
+    },
+    {
+      "bufferSize": 0,
+      "buffered": false,
+      "channelId": 2,
+      "timestamp": "2026-04-14T20:08:21.0925081+02:00"
+    },
+    {
+      "bufferSize": 0,
+      "buffered": false,
+      "channelId": 3,
+      "timestamp": "2026-04-14T20:08:21.0925081+02:00"
+    },
+    {
+      "bufferSize": 0,
+      "buffered": false,
+      "channelId": 4,
+      "timestamp": "2026-04-14T20:08:21.0933318+02:00"
+    }
+  ],
+  "Events": [
+    {
+      "ChannelID": 1,
+      "MessageID": 1,
+      "SenderID": 9,
+      "ReceiverID": 6,
+      "SendTime": "2026-04-14T20:08:21.0938391+02:00",
+      "ReceiveTime": "2026-04-14T20:08:21.0938391+02:00",
+      "Value": "ping"
+    },
+    {
+      "ChannelID": 2,
+      "MessageID": 2,
+      "SenderID": 11,
+      "ReceiverID": 8,
+      "SendTime": "2026-04-14T20:08:21.0947937+02:00",
+      "ReceiveTime": "2026-04-14T20:08:21.0947937+02:00",
+      "Value": {
+        "Name": "Alice",
+        "Age": 30
+      }
+    },
+    {
+      "ChannelID": 3,
+      "MessageID": 3,
+      "SenderID": 10,
+      "ReceiverID": 7,
+      "SendTime": "2026-04-14T20:08:21.095298+02:00",
+      "ReceiveTime": "2026-04-14T20:08:21.095298+02:00",
+      "Value": 42
+    },
+    {
+      "ChannelID": 1,
+      "MessageID": 4,
+      "SenderID": 6,
+      "ReceiverID": 9,
+      "SendTime": "2026-04-14T20:08:21.0960474+02:00",
+      "ReceiveTime": "2026-04-14T20:08:21.0960474+02:00",
+      "Value": "pong"
+    },
+    {
+      "ChannelID": 2,
+      "MessageID": 5,
+      "SenderID": 8,
+      "ReceiverID": 11,
+      "SendTime": "2026-04-14T20:08:21.096552+02:00",
+      "ReceiveTime": "2026-04-14T20:08:21.0970918+02:00",
+      "Value": {
+        "Name": "Bob",
+        "Age": 25
+      }
+    },
+    {
+      "ChannelID": 3,
+      "MessageID": 6,
+      "SenderID": 7,
+      "ReceiverID": 10,
+      "SendTime": "2026-04-14T20:08:21.0970918+02:00",
+      "ReceiveTime": "2026-04-14T20:08:21.0970918+02:00",
+      "Value": 24
+    },
+    {
+      "ChannelID": 4,
+      "MessageID": 7,
+      "SenderID": 12,
+      "ReceiverID": 14,
+      "SendTime": "2026-04-14T20:08:25.0818109+02:00",
+      "ReceiveTime": "2026-04-14T20:08:25.0818109+02:00",
+      "Value": 108
+    },
+    {
+      "ChannelID": 4,
+      "MessageID": 8,
+      "SenderID": 12,
+      "ReceiverID": 14,
+      "SendTime": "2026-04-14T20:08:32.1346447+02:00",
+      "ReceiveTime": "2026-04-14T20:08:32.1346447+02:00",
+      "Value": 111
+    },
+    {
+      "ChannelID": 4,
+      "MessageID": 9,
+      "SenderID": 12,
+      "ReceiverID": 14,
+      "SendTime": "2026-04-14T20:08:46.194158+02:00",
+      "ReceiveTime": "2026-04-14T20:08:46.194158+02:00",
+      "Value": 108
+    }
+  ]
+}

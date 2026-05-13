@@ -38,6 +38,65 @@ type Channel[T any] struct {
     Chan chan Message[T]
 }
 
+// csak küldésre használható nézet
+type Sender[T any] struct {
+	c Channel[T]
+}
+
+// csak fogadásra használható nézet
+type Receiver[T any] struct {
+	c Channel[T]
+}
+
+// Channel-ből küldőt csinál
+func (c Channel[T]) AsSender() Sender[T] {
+	return Sender[T]{c: c}
+}
+
+// Channel-ból fogadót csinál
+func (c Channel[T]) AsReceiver() Receiver[T] {
+	return Receiver[T]{c: c}
+}
+
+// küldés delegálása
+func (s Sender[T]) Send(value T) {
+	s.c.Send(value)
+}
+
+// fogadás delegálása
+func (r Receiver[T]) Receive() (T, bool) {
+	return r.c.Receive()
+}
+
+func (c Channel[T]) Close() {
+	close(c.Chan)
+}
+
+func (s Sender[T]) Close() {
+	close(s.c.Chan)
+}
+
+func (c Channel[T]) Range() <-chan T {
+	out := make(chan T)
+
+	go func() {
+		for {
+			v, ok := c.Receive()
+			if !ok {
+				break
+			}
+			out <- v
+		}
+		close(out)
+	}()
+
+	return out
+}
+
+func (r Receiver[T]) Range() <-chan T {
+	return r.c.Range()
+}
+
 type Message[T any] struct {
     SenderID   int64 // küldő goroutine ID
 	ChannelID  int   // az adott csatorna azonosítója
@@ -114,11 +173,14 @@ func (c Channel[T]) Send(value T) {
     c.Chan <- message
 }
 
-func (c Channel[T]) Receive() T {
+func (c Channel[T]) Receive() (T, bool) {
     gid := GetGoid() // fogadó goroutine id-ja
 
-    msg := <-c.Chan 
-        
+    msg, ok := <-c.Chan 
+    if !ok {
+        var zero T
+        return zero, false
+    }
 
     mu.Lock()
     event, exists := events[msg.MessageID]
@@ -131,8 +193,10 @@ func (c Channel[T]) Receive() T {
         delete(events, msg.MessageID)
     }
     mu.Unlock()
+    
+    fmt.Println("Receive called, msg id:", msg.MessageID)
 
-    return msg.Value
+    return msg.Value, true
 }
 
 // Goroutine ID lekérdezése (nem hivatalos módszer, de működik)

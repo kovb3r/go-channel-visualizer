@@ -4,6 +4,8 @@ import (
 	"example/wrapper"
 	"fmt"
 	"sync"
+	"bufio"
+	"os"
 )
 
 var wg sync.WaitGroup // WaitGroup a goroutine-ok befejeződésének megvárásához
@@ -17,14 +19,14 @@ type name struct {
 // Egyik goroutine, amely küld egy name típusú értéket, majd vár egy választ
 func nameChannel(c wrapper.Channel[name]) {
 	c.Send(name{"Alice", 30})
-	msg := c.Receive()
+	msg, _ := c.Receive()
 	fmt.Printf("Name: %s, Age: %d\n", msg.Name, msg.Age)
 	wg.Done()
 }
 
 // Másik goroutine: fogadja az előzőtől kapott name értéket, majd visszaküld egy másikat
 func nameChannel2(c wrapper.Channel[name]) {
-	msg := c.Receive()
+	msg, _ := c.Receive()
 	fmt.Printf("Name: %s, Age: %d\n", msg.Name, msg.Age)
 	c.Send(name{"Bob", 25})
 	wg.Done()
@@ -33,14 +35,14 @@ func nameChannel2(c wrapper.Channel[name]) {
 // Goroutine: string típusú üzenetküldés ("ping"), majd válasz fogadása
 func ping(c wrapper.Channel[string]) {
 	c.Send("ping")
-	msg := c.Receive()
+	msg, _ := c.Receive()
 	fmt.Println(msg)
 	wg.Done()
 }
 
 // Goroutine: fogad egy string üzenetet, kiírja, majd válaszként "pong"-ot küld
 func pong(c wrapper.Channel[string]) {
-	msg := c.Receive()
+	msg, _ := c.Receive()
 	fmt.Println(msg)
 	c.Send("pong")
 	wg.Done()
@@ -49,33 +51,66 @@ func pong(c wrapper.Channel[string]) {
 // Int típusú csatorna: küld egy számot, majd fogad egy választ
 func number(c wrapper.Channel[int]) {
 	c.Send(42)
-	msg := c.Receive()
+	msg, _ := c.Receive()
 	fmt.Println(msg)
 	wg.Done()
 }
 
 // Int típusú csatorna másik fele: fogad, majd válaszol
 func number2(c wrapper.Channel[int]) {
-	msg := c.Receive()
+	msg, _ := c.Receive()
 	fmt.Println(msg)
 	c.Send(24)
 	wg.Done()
 }
+
+// szűrés
+func first(in *bufio.Reader, out wrapper.Sender[int]) {
+	reading := true
+
+	for reading {
+		value, _ := in.ReadByte()
+
+		if 97 <= value && value <= 122 {
+			out.Send(int(value))
+		} else if value == 48 {
+			reading = false
+			out.Close()
+		}
+	}
+}
+
+// transzformálás
+func second(in wrapper.Receiver[int], out *bufio.Writer) {
+
+	for value := range in.Range() {
+		out.WriteByte(byte(value - 32))
+		out.Flush() // kiürítjük a a writer buffer-ét
+	}
+	wg.Done()
+}
+
+
 
 func main() {
 	// Három típusos csatorna létrehozása: string, name és int
 	c := wrapper.CreateChannel[string](3) // pufferelt csatorna
 	n := wrapper.CreateChannel[name]()
 	i := wrapper.CreateChannel[int]()
+	a := wrapper.CreateChannel[int]()
+	in := bufio.NewReader(os.Stdin)
+	out := bufio.NewWriter(os.Stderr)
 
 	// 6 goroutine-t indítunk el
-	wg.Add(6)
+	wg.Add(7)
 	go pong(c)    
     go number2(i)  
     go nameChannel2(n) 
     go ping(c)
     go number(i)
     go nameChannel(n)
+	go first(in, a.AsSender())
+	go second(a.AsReceiver(), out)
 
 	// Várakozás az összes goroutine befejeződésére
 	wg.Wait()
