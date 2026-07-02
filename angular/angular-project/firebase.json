@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "go-channel-visualizer",
     "public": "dist/angular-project/browser",
     "ignore": [
       "firebase.json",

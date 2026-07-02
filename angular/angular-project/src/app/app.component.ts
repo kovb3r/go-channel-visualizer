@@ -1,10 +1,12 @@
-import { Component, NgZone, OnDestroy } from '@angular/core';
+import { Component, NgZone, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterOutlet } from '@angular/router';
 import { TraceUploadComponent } from './trace-upload/trace-upload.component';
 import { GraphViewComponent } from './graph-view/graph-view.component';
 import { TraceFile, VizLink, VizNode, VizMessage } from './models/trace.model';
 import { TraceParserService } from './services/trace-parser.service';
+import { FirestoreService } from './services/firestore.service';
 
 type EventMarker = { leftPct: number; stackIndex: number };
 
@@ -13,6 +15,7 @@ type EventMarker = { leftPct: number; stackIndex: number };
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     RouterOutlet,
     TraceUploadComponent,
     GraphViewComponent,
@@ -20,7 +23,7 @@ type EventMarker = { leftPct: number; stackIndex: number };
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
 })
-export class AppComponent implements OnDestroy {
+export class AppComponent implements OnInit, OnDestroy {
   title = 'angular-project';
 
   // A kirajzoláshoz szükséges adatok (gyerek komponens bemenetei)
@@ -52,10 +55,75 @@ export class AppComponent implements OnDestroy {
   private rafId: number | null = null;
   private lastFrameTs: number | null = null;
 
+  private firestoreService = inject(FirestoreService);
+
+  // Cleanup settings state
+  showCleanupPanel = false;
+  cronExpression = '0 0 * * *'; // daily by default
+  cronSettingsSaved = false;
+
   constructor(
     private parser: TraceParserService,
     private zone: NgZone,
   ) {}
+
+  async ngOnInit(): Promise<void> {
+    try {
+      const settings = await this.firestoreService.getCleanupSettings();
+      if (settings?.cronExpression) {
+        this.cronExpression = settings.cronExpression;
+      }
+    } catch { /* ignore if offline */ }
+    await this.runCleanupIfDue();
+  }
+
+  private async runCleanupIfDue(): Promise<void> {
+    try {
+      const settings = await this.firestoreService.getCleanupSettings();
+      if (!settings) return;
+
+      const shouldRun = this.isCronDue(settings.cronExpression, settings.lastCleanupRun?.toDate() ?? null);
+      if (!shouldRun) return;
+
+      await this.firestoreService.deleteOldTraces(24 * 60 * 60 * 1000); // 24h
+      await this.firestoreService.markCleanupRun();
+    } catch (e) {
+      console.warn('Cleanup check failed:', e);
+    }
+  }
+
+  private isCronDue(expression: string, lastRun: Date | null): boolean {
+    if (!lastRun) return true;
+    const parts = expression.trim().split(/\s+/);
+    if (parts.length < 5) return false;
+
+    const [, hourPart, dayPart, , weekPart] = parts;
+    const now = new Date();
+    const diffMs = now.getTime() - lastRun.getTime();
+
+    // Simple interval heuristic based on the cron expression fields
+    if (weekPart !== '*') {
+      return diffMs >= 7 * 24 * 60 * 60 * 1000;
+    }
+    if (dayPart !== '*') {
+      return diffMs >= 30 * 24 * 60 * 60 * 1000;
+    }
+    if (hourPart !== '*') {
+      const h = Number(hourPart);
+      return Number.isFinite(h) && diffMs >= 24 * 60 * 60 * 1000;
+    }
+    return diffMs >= 60 * 60 * 1000;
+  }
+
+  async saveCronSettings(): Promise<void> {
+    try {
+      await this.firestoreService.updateCleanupSettings({ cronExpression: this.cronExpression });
+      this.cronSettingsSaved = true;
+      setTimeout(() => (this.cronSettingsSaved = false), 2000);
+    } catch (e) {
+      console.error('Failed to save cleanup settings:', e);
+    }
+  }
 
   get speedFactor(): number {
     return this.speed / 1000;

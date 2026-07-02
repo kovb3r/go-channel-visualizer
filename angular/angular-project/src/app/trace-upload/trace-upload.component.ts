@@ -1,122 +1,157 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-// Nyers érték típusai, amik a JSON Value mezőjében előfordulhatnak.
-type RawValue = string | number | Record<string, unknown>;
-
-// Csatorna leírás a JSON fájlból
-interface Channel {
-  channelId: number; // csatorna egyedi azonosítója
-  timestamp: string; // létrehozás időbélyege ISO formátumban
-  buffered?: boolean; // opcionális: pufferelt csatorna-e
-  bufferSize?: number; // opcionális: puffer mérete, ha pufferelt
-}
-
-// Esemény objektum a JSON fájlból
-interface EventItem {
-  ChannelID: number;   // cél csatorna azonosítója
-  MessageID: number;   // üzenet egyedi azonosítója
-  SenderID: number;    // küldő goroutine/folyamat azonosítója
-  ReceiverID: number;  // fogadó goroutine/folyamat azonosítója
-  SendTime: string;    // küldés időbélyege
-  ReceiveTime: string; // fogadás időbélyege
-  Value: RawValue;     // az üzenet tartalma (tetszőleges JSON-kompatibilis érték)
-}
-
-// A teljes trace fájl szerkezete, amit az alkalmazás betölt
-interface TraceFile {
-  Channels: Channel[];
-  Events: EventItem[];
-}
+import { FormsModule } from '@angular/forms';
+import { TraceFile } from '../models/trace.model';
+import { FirestoreService, TraceDoc } from '../services/firestore.service';
 
 @Component({
   selector: 'app-trace-upload',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './trace-upload.component.html',
   styleUrls: ['./trace-upload.component.scss'],
 })
 export class TraceUploadComponent {
-  @Output() loaded = new EventEmitter<TraceFile>(); // sikeres betöltés eseménye
+  private firestoreService = inject(FirestoreService);
 
-  // UI állapotok / metaadatok
-  fileName: string | null = null; // kiválasztott fájl neve
-  fileSize: number | null = null; // kiválasztott fájl mérete bájtban
-  summary: { channels: number; events: number } | null = null; // rövid összegzés
-  error: string | null = null; // hibajelzés a felhasználónak
+  @Output() loaded = new EventEmitter<TraceFile>();
 
-  // Felhasználói gombnyomás: a rejtett file input elemre kattintást indítja
+  // meglévő mezők
+  fileName: string | null = null;
+  fileSize: number | null = null;
+  summary: { channels: number; events: number } | null = null;
+  error: string | null = null;
+
+  // cloud mentés
+  saveToCloud = false;
+  traceName = '';
+  saveStatus: 'idle' | 'saving' | 'saved' | 'error' = 'idle';
+  saveError = '';
+  private currentTrace: TraceFile | null = null;
+
+  // cloud betöltés
+  cloudTraces: TraceDoc[] = [];
+  cloudLoading = false;
+  cloudError = '';
+  showCloudList = false;
+
   async onPickFileClick(input: HTMLInputElement) {
     input.click();
   }
 
-  // File input változáskezelő: a fájl beolvasása és validálása
   async onFileChange(evt: Event) {
-    this.resetUi(); // előző állapot törlése
+    this.resetUi();
     const input = evt.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (!file) return; // ha nincs fájl, kilépünk
+    if (!file) return;
 
-    // Metaadatok frissítése a UI-hoz
     this.fileName = file.name;
     this.fileSize = file.size;
 
     try {
-      const text = await file.text(); // fájl szövegként beolvasása
-      const data = this.safeParse(text); // JSON parse hibakezeléssel
-      this.basicValidate(data); // egyszerű szerkezetellenőrzés
+      const text = await file.text();
+      const data = this.safeParse(text);
+      this.basicValidate(data);
 
-      // Rövid összegzés készítése a UI-hoz
       this.summary = {
         channels: Array.isArray(data.Channels) ? data.Channels.length : 0,
         events: Array.isArray(data.Events) ? data.Events.length : 0,
       };
 
-      this.loaded.emit(data); // sikeres betöltés: esemény küldése a szülő komponensnek
+      this.currentTrace = data;
+      this.loaded.emit(data);
     } catch (e: any) {
-      // Hibakezelés: üzenet megjelenítése a felhasználónak
       this.error = e?.message ?? 'Unknown error while processing the file.';
     } finally {
-      // Ugyanazt a fájlt újra lehessen kiválasztani: input értékének törlése
       (evt.target as HTMLInputElement).value = '';
     }
   }
 
-  // Biztonságos JSON feldolgozás: parse és egyedi hibaüzenet
+  async saveCurrentTrace(): Promise<void> {
+    if (!this.currentTrace) return;
+    await this.saveToFirestore(this.currentTrace);
+  }
+
+  get canSave(): boolean {
+    return !!this.currentTrace && this.traceName.trim().length > 0;
+  }
+
+  private async saveToFirestore(data: TraceFile): Promise<void> {
+    this.saveStatus = 'saving';
+    try {
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const ts =
+        now.getFullYear().toString() +
+        pad(now.getMonth() + 1) +
+        pad(now.getDate()) +
+        '_' +
+        pad(now.getHours()) +
+        pad(now.getMinutes()) +
+        pad(now.getSeconds());
+      const filename = `${this.traceName.trim()}_${ts}`;
+      await this.firestoreService.saveTrace(filename, data);
+      this.saveStatus = 'saved';
+    } catch (e: any) {
+      this.saveStatus = 'error';
+      this.saveError = e?.message ?? 'Failed to save to cloud.';
+    }
+  }
+
+  async openCloudList(): Promise<void> {
+    this.showCloudList = true;
+    this.cloudLoading = true;
+    this.cloudError = '';
+    try {
+      this.cloudTraces = await this.firestoreService.listTraces();
+    } catch (e: any) {
+      this.cloudError = e?.message ?? 'Failed to load cloud traces.';
+    } finally {
+      this.cloudLoading = false;
+    }
+  }
+
+  closeCloudList(): void {
+    this.showCloudList = false;
+  }
+
+  async loadCloudTrace(trace: TraceDoc): Promise<void> {
+    this.showCloudList = false;
+    this.resetUi();
+    this.fileName = trace.filename + ' (cloud)';
+    try {
+      this.basicValidate(trace.content);
+      this.summary = {
+        channels: Array.isArray(trace.content.Channels) ? trace.content.Channels.length : 0,
+        events: Array.isArray(trace.content.Events) ? trace.content.Events.length : 0,
+      };
+      this.loaded.emit(trace.content);
+    } catch (e: any) {
+      this.error = e?.message ?? 'Invalid trace data from cloud.';
+    }
+  }
+
   private safeParse(text: string): TraceFile {
     try {
-      const obj = JSON.parse(text);
-      return obj as TraceFile;
+      return JSON.parse(text) as TraceFile;
     } catch {
-      // If not valid JSON, throw an error for the caller to handle
       throw new Error('The file is not valid JSON.');
     }
   }
 
-  // Alapvető struktúraellenőrzés a betöltött objektumon
   private basicValidate(data: TraceFile) {
     if (!data || typeof data !== 'object') {
       throw new Error('The file does not contain the expected object.');
     }
-    if (!Array.isArray(data.Channels)) {
-      throw new Error('Missing Channels array.');
-    }
-    if (!Array.isArray(data.Events)) {
-      throw new Error('Missing Events array.');
-    }
-    
-    // Ellenőrizzük a Channels tömb első elemének szerkezetét
+    if (!Array.isArray(data.Channels)) throw new Error('Missing Channels array.');
+    if (!Array.isArray(data.Events)) throw new Error('Missing Events array.');
+
     for (const ch of data.Channels) {
-      if (
-        typeof ch.channelId !== 'number' ||
-        typeof ch.timestamp !== 'string'
-      ) {
+      if (typeof ch.channelId !== 'number' || typeof ch.timestamp !== 'string') {
         throw new Error('Some Channels entries are not in the expected format.');
       }
-      break; // csak az első elem ellenőrzése a gyors alapellenőrzéshez
+      break;
     }
-
-    // Ellenőrizzük az Events tömb első elemének szerkezetét
     for (const ev of data.Events) {
       if (
         typeof ev.ChannelID !== 'number' ||
@@ -128,15 +163,17 @@ export class TraceUploadComponent {
       ) {
         throw new Error('Some Events entries are not in the expected format.');
       }
-      break; // csak az első elem ellenőrzése elég az alapvalidáláshoz
+      break;
     }
   }
 
-  // UI állapot visszaállítása alapértékekre
   private resetUi() {
     this.error = null;
     this.summary = null;
     this.fileName = null;
     this.fileSize = null;
+    this.saveStatus = 'idle';
+    this.saveError = '';
+    this.currentTrace = null;
   }
 }

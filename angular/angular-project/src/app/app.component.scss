@@ -61,6 +61,15 @@
     background: #dc2626;
 }
 
+.btn.secondary {
+    background: #1e3a5f;
+    border-color: #2d5494;
+}
+
+.btn.secondary:hover {
+    background: #264a78;
+}
+
 .spacer {
     flex: 1;
 }

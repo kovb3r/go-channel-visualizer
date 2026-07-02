@@ -9,6 +9,34 @@
             accept="application/json,.json"
             (change)="onFileChange($event)"
             hidden />
+
+        <button class="btn secondary" (click)="openCloudList()">
+            Load from cloud
+        </button>
+    </div>
+
+    <!-- Cloud save options -->
+    <div class="cloud-save-row">
+        <label class="chk">
+            <input type="checkbox" [(ngModel)]="saveToCloud" />
+            Save to cloud
+        </label>
+        <ng-container *ngIf="saveToCloud">
+            <input
+                class="trace-name-input"
+                type="text"
+                placeholder="Trace name"
+                [(ngModel)]="traceName" />
+            <button
+                class="btn"
+                [disabled]="!canSave || saveStatus === 'saving'"
+                (click)="saveCurrentTrace()">
+                Save
+            </button>
+        </ng-container>
+        <span class="save-status" *ngIf="saveStatus === 'saving'">Saving…</span>
+        <span class="save-status ok" *ngIf="saveStatus === 'saved'">Saved!</span>
+        <span class="save-status err" *ngIf="saveStatus === 'error'">{{ saveError }}</span>
     </div>
 
     <div class="meta" *ngIf="fileName && !error">
@@ -21,4 +49,29 @@
     </div>
 
     <div class="err" *ngIf="error">{{ error }}</div>
+
+    <!-- Cloud trace list modal -->
+    <div class="cloud-modal" *ngIf="showCloudList">
+        <div class="cloud-modal-inner">
+            <div class="cloud-modal-header">
+                <span>Cloud traces</span>
+                <button class="btn-icon" (click)="closeCloudList()">✕</button>
+            </div>
+            <div class="cloud-modal-body">
+                <div *ngIf="cloudLoading" class="cloud-loading">Loading…</div>
+                <div *ngIf="cloudError" class="err">{{ cloudError }}</div>
+                <div *ngIf="!cloudLoading && !cloudError && cloudTraces.length === 0" class="cloud-empty">
+                    No saved traces yet.
+                </div>
+                <ul class="cloud-list" *ngIf="!cloudLoading && cloudTraces.length > 0">
+                    <li *ngFor="let t of cloudTraces" (click)="loadCloudTrace(t)" class="cloud-item">
+                        <span class="cloud-name">{{ t.filename }}</span>
+                        <span class="cloud-date" *ngIf="t.createdAt">
+                            {{ t.createdAt.toDate() | date:'yyyy-MM-dd HH:mm' }}
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>

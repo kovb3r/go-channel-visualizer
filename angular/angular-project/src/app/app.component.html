@@ -1,7 +1,31 @@
 <!-- Feltöltő sáv -->
 <div
   style="padding: 12px; background: #0a0f1c; border-bottom: 1px solid #111827">
-  <app-trace-upload (loaded)="onTraceLoaded($event)"></app-trace-upload>
+  <div style="display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+    <app-trace-upload (loaded)="onTraceLoaded($event)" style="flex:1;"></app-trace-upload>
+
+    <!-- Cleanup settings toggle -->
+    <button class="btn secondary" style="white-space:nowrap; margin-top:2px;"
+      (click)="showCleanupPanel = !showCleanupPanel">
+      ⚙ Cloud cleanup
+    </button>
+  </div>
+
+  <!-- Cleanup panel -->
+  <div class="cleanup-panel" *ngIf="showCleanupPanel"
+    style="margin-top:10px; padding:10px; border:1px solid #1f2937; border-radius:6px; background:#0d1424;">
+    <div style="margin-bottom:8px; color:#9ca3af; font-size:13px;">
+      Cleanup schedule — cron expression (traces older than 24h are deleted on app start if due):
+    </div>
+    <input type="text" [(ngModel)]="cronExpression"
+      placeholder="e.g. 0 0 * * * (daily at midnight)"
+      style="background:#111827; border:1px solid #374151; color:#e2e8f0; padding:6px 10px; border-radius:6px; font-family:monospace; font-size:13px; width:260px; outline:none;" />
+    <div style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+      <button class="btn" (click)="saveCronSettings()">Save schedule</button>
+      <span *ngIf="cronSettingsSaved" style="color:#34d399; font-size:13px;">Saved!</span>
+      <span style="color:#6b7280; font-size:12px;">Current: {{ cronExpression }}</span>
+    </div>
+  </div>
 </div>
 
 <!-- Timeline / csúszka -->
