@@ -1,77 +1,70 @@
-<div class="uploader">
-    <div class="row">
-        <button class="btn" (click)="onPickFileClick(fileInput)">
-            upload JSON file
-        </button>
-        <input
-            #fileInput
-            type="file"
-            accept="application/json,.json"
-            (change)="onFileChange($event)"
-            hidden />
+<div class="upload-root">
+  <input #fileInput type="file" accept="application/json,.json"
+         (change)="onFileChange($event)" hidden />
 
-        <button class="btn secondary" (click)="openCloudList()">
-            Load from cloud
-        </button>
-    </div>
+  <!-- Action buttons -->
+  <div class="upload-actions">
+    <button class="hbtn primary" (click)="onPickFileClick(fileInput)">
+      ↑ Upload trace
+    </button>
+    <button class="hbtn" (click)="openCloudList()" title="Load from cloud">
+      ☁ Cloud
+    </button>
+  </div>
 
-    <!-- Cloud save options -->
-    <div class="cloud-save-row">
-        <label class="chk">
-            <input type="checkbox" [(ngModel)]="saveToCloud" />
-            Save to cloud
-        </label>
-        <ng-container *ngIf="saveToCloud">
-            <input
-                class="trace-name-input"
-                type="text"
-                placeholder="Trace name"
-                [(ngModel)]="traceName" />
-            <button
-                class="btn"
+  <!-- File chip: shown when a trace is successfully loaded -->
+  <div class="file-chip" *ngIf="fileName && !error">
+    <span class="chip-name" [title]="fileName">{{ fileName }}</span>
+    <span class="chip-meta" *ngIf="summary">· {{ summary.channels }}ch / {{ summary.events }}ev</span>
+  </div>
+
+  <!-- Save to cloud: shown when trace is loaded -->
+  <div class="save-section" *ngIf="summary && !error">
+    <label class="hbtn save-toggle" [class.active]="saveToCloud" title="Save to cloud">
+      <input type="checkbox" [(ngModel)]="saveToCloud" hidden />
+      ☁ Save
+    </label>
+    <div class="save-popover" *ngIf="saveToCloud">
+      <div class="save-popover-label">Save to cloud</div>
+      <input class="save-input" type="text" placeholder="Trace name"
+             [(ngModel)]="traceName" />
+      <div class="save-row">
+        <button class="hbtn save-btn"
                 [disabled]="!canSave || saveStatus === 'saving'"
                 (click)="saveCurrentTrace()">
-                Save
-            </button>
-        </ng-container>
-        <span class="save-status" *ngIf="saveStatus === 'saving'">Saving…</span>
-        <span class="save-status ok" *ngIf="saveStatus === 'saved'">Saved!</span>
-        <span class="save-status err" *ngIf="saveStatus === 'error'">{{ saveError }}</span>
+          {{ saveStatus === 'saving' ? 'Saving…' : 'Save' }}
+        </button>
+        <span class="save-status-ok" *ngIf="saveStatus === 'saved'">Saved!</span>
+        <span class="save-status-err" *ngIf="saveStatus === 'error'" [title]="saveError">Error</span>
+      </div>
     </div>
+  </div>
 
-    <div class="meta" *ngIf="fileName && !error">
-        <div><strong>File:</strong> {{ fileName }}</div>
-        <div><strong>Size:</strong> {{ fileSize ?? 0 | number }} B</div>
-        <div *ngIf="summary">
-            <strong>Content:</strong>
-            {{ summary.channels }} channel, {{ summary.events }} event
+  <!-- Error indicator -->
+  <div class="upload-error" *ngIf="error" [title]="error">⚠ {{ error }}</div>
+
+  <!-- Cloud traces modal -->
+  <div class="cloud-modal" *ngIf="showCloudList">
+    <div class="cloud-modal-inner">
+      <div class="cloud-modal-header">
+        <span>Cloud traces</span>
+        <button class="btn-icon" (click)="closeCloudList()">✕</button>
+      </div>
+      <div class="cloud-modal-body">
+        <div *ngIf="cloudLoading" class="cloud-loading">Loading…</div>
+        <div *ngIf="cloudError" class="cloud-err">{{ cloudError }}</div>
+        <div *ngIf="!cloudLoading && !cloudError && cloudTraces.length === 0" class="cloud-empty">
+          No saved traces yet.
         </div>
+        <ul class="cloud-list" *ngIf="!cloudLoading && cloudTraces.length > 0">
+          <li *ngFor="let t of cloudTraces" (click)="loadCloudTrace(t)" class="cloud-item">
+            <span class="cloud-name">{{ t.filename }}</span>
+            <span class="cloud-date" *ngIf="t.createdAt">
+              {{ t.createdAt.toDate() | date:'yyyy-MM-dd HH:mm' }}
+            </span>
+          </li>
+        </ul>
+      </div>
     </div>
-
-    <div class="err" *ngIf="error">{{ error }}</div>
-
-    <!-- Cloud trace list modal -->
-    <div class="cloud-modal" *ngIf="showCloudList">
-        <div class="cloud-modal-inner">
-            <div class="cloud-modal-header">
-                <span>Cloud traces</span>
-                <button class="btn-icon" (click)="closeCloudList()">✕</button>
-            </div>
-            <div class="cloud-modal-body">
-                <div *ngIf="cloudLoading" class="cloud-loading">Loading…</div>
-                <div *ngIf="cloudError" class="err">{{ cloudError }}</div>
-                <div *ngIf="!cloudLoading && !cloudError && cloudTraces.length === 0" class="cloud-empty">
-                    No saved traces yet.
-                </div>
-                <ul class="cloud-list" *ngIf="!cloudLoading && cloudTraces.length > 0">
-                    <li *ngFor="let t of cloudTraces" (click)="loadCloudTrace(t)" class="cloud-item">
-                        <span class="cloud-name">{{ t.filename }}</span>
-                        <span class="cloud-date" *ngIf="t.createdAt">
-                            {{ t.createdAt.toDate() | date:'yyyy-MM-dd HH:mm' }}
-                        </span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </div>
+  </div>
 </div>

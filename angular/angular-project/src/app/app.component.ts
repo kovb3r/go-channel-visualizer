@@ -50,7 +50,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private readonly MIN_SPEED_FACTOR = 0.01; // bal szélen 0.01x
   private readonly MAX_SPEED_FACTOR = 20; // jobb szélen 20x
-  private readonly FIXED_FILM_MS = 15_000;
+  private readonly FIXED_FILM_MS = 20_000;
 
   private rafId: number | null = null;
   private lastFrameTs: number | null = null;

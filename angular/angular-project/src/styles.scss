@@ -1,1 +1,68 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --cv-bg:              #070c14;
+  --cv-bg-header:       #0d1117;
+  --cv-bg-surface:      #111827;
+  --cv-bg-surface-2:    #0d1424;
+  --cv-bg-hover:        #162033;
+  --cv-border:          #1f2937;
+  --cv-border-strong:   #374151;
+  --cv-text:            #e2e8f0;
+  --cv-text-muted:      #9ca3af;
+  --cv-text-dim:        #4b5563;
+  --cv-accent:          #3b82f6;
+  --cv-accent-dim:      #1d4ed8;
+  --cv-accent-bg:       #0d1f3c;
+  --cv-accent-border:   #1d4ed8;
+  --cv-accent-text:     #93c5fd;
+  --cv-success:         #34d399;
+  --cv-success-bg:      #0a1a0d;
+  --cv-success-border:  #166534;
+  --cv-success-text:    #86efac;
+  --cv-warning:         #fbbf24;
+  --cv-danger:          #f87171;
+  --cv-danger-bg:       rgba(248, 113, 113, 0.1);
+  --cv-radius-sm:       6px;
+  --cv-radius-md:       8px;
+  --cv-radius-lg:       12px;
+  --cv-header-h:        58px;
+}
+
+/*
+  Light mode – uncomment to enable (toggle [data-theme="light"] on <html>):
+
+  [data-theme="light"] {
+    --cv-bg:              #f1f5f9;
+    --cv-bg-header:       #ffffff;
+    --cv-bg-surface:      #f8fafc;
+    --cv-bg-surface-2:    #f1f5f9;
+    --cv-bg-hover:        #e2e8f0;
+    --cv-border:          #e2e8f0;
+    --cv-border-strong:   #cbd5e1;
+    --cv-text:            #0f172a;
+    --cv-text-muted:      #475569;
+    --cv-text-dim:        #94a3b8;
+    --cv-accent-bg:       #eff6ff;
+    --cv-accent-border:   #93c5fd;
+    --cv-accent-text:     #1d4ed8;
+    --cv-success-bg:      #f0fdf4;
+    --cv-success-border:  #86efac;
+    --cv-success-text:    #166534;
+    --cv-bg-hover:        #f1f5f9;
+  }
+*/
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--cv-bg);
+  color: var(--cv-text);
+}
