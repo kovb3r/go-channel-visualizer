@@ -62,10 +62,38 @@ export class AppComponent implements OnInit, OnDestroy {
   cronExpression = '0 0 * * *'; // daily by default
   cronSettingsSaved = false;
 
+  // Téma (light / dark)
+  theme: 'dark' | 'light' = 'dark';
+
   constructor(
     private parser: TraceParserService,
     private zone: NgZone,
-  ) {}
+  ) {
+    this.initTheme();
+  }
+
+  private initTheme(): void {
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem('cv-theme');
+    } catch { /* ignore */ }
+    this.theme = saved === 'light' ? 'light' : 'dark';
+    this.applyTheme();
+  }
+
+  toggleTheme(): void {
+    this.theme = this.theme === 'dark' ? 'light' : 'dark';
+    try {
+      localStorage.setItem('cv-theme', this.theme);
+    } catch { /* ignore */ }
+    this.applyTheme();
+  }
+
+  private applyTheme(): void {
+    const root = document.documentElement;
+    if (this.theme === 'light') root.setAttribute('data-theme', 'light');
+    else root.removeAttribute('data-theme');
+  }
 
   async ngOnInit(): Promise<void> {
     try {

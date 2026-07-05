@@ -24,6 +24,13 @@
     <div class="header-sep" aria-hidden="true"></div>
 
     <button class="icon-btn"
+            (click)="toggleTheme()"
+            [title]="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+            [attr.aria-label]="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
+      {{ theme === 'dark' ? '☀' : '☾' }}
+    </button>
+
+    <button class="icon-btn"
             (click)="showCleanupPanel = !showCleanupPanel"
             [class.active]="showCleanupPanel"
             title="Cloud cleanup settings"

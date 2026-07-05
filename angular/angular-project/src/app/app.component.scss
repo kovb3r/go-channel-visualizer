@@ -75,7 +75,7 @@
 
 .settings-dropdown {
   position: absolute;
-  top: calc(var(--cv-header-h) + 4px);
+  top: calc(100% + 4px);
   right: 14px;
   background: var(--cv-bg-surface);
   border: 1px solid var(--cv-border);
@@ -382,7 +382,7 @@ app-graph-view {
   min-width: 64px;
   justify-content: center;
 
-  &:hover:not(:disabled) { background: #102650; }
+  &:hover:not(:disabled) { background: var(--cv-accent-hover); }
 }
 
 .ctrl-btn.ev-btn {
@@ -481,11 +481,32 @@ app-graph-view {
   .speed-wrap input[type="range"] { width: 72px; }
 }
 
+// Mobil fejléc: a tartalom két sorba tördelődik ahelyett, hogy kilógna.
+// 1. sor: logó + (jobbra) téma/beállítás gombok. 2. sor: teljes szélességű feltöltő sáv.
+@media (max-width: 640px) {
+  .app-header {
+    height: auto;
+    min-height: var(--cv-header-h);
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .header-sep { display: none; }
+
+  app-trace-upload {
+    order: 10;      // a logó/gombok sora alá kerül
+    width: 100%;
+    display: block;
+  }
+}
+
 @media (max-width: 520px) {
-  .app-header { gap: 6px; padding: 0 10px; }
+  .app-header { gap: 6px; padding: 8px 10px; }
 
   .logo-text {
-    max-width: 120px;
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

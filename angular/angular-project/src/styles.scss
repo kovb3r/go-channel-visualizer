@@ -14,10 +14,12 @@
   --cv-accent-bg:       #0d1f3c;
   --cv-accent-border:   #1d4ed8;
   --cv-accent-text:     #93c5fd;
+  --cv-accent-hover:    #102650;
   --cv-success:         #34d399;
   --cv-success-bg:      #0a1a0d;
   --cv-success-border:  #166534;
   --cv-success-text:    #86efac;
+  --cv-success-hover:   #0f2a18;
   --cv-warning:         #fbbf24;
   --cv-danger:          #f87171;
   --cv-danger-bg:       rgba(248, 113, 113, 0.1);
@@ -27,29 +29,54 @@
   --cv-header-h:        58px;
 }
 
-/*
-  Light mode – uncomment to enable (toggle [data-theme="light"] on <html>):
+/* Light mode – aktiválás: data-theme="light" a <html>-en (a fejléc kapcsolójával).
+   Lágy, hűvös szürke paletta (nem vakító fehér), tónusos gráf-háttérrel. */
+[data-theme="light"] {
+  --cv-bg:              #e7ebf1;
+  --cv-bg-header:       #f2f4f8;
+  --cv-bg-surface:      #fbfcfe;
+  --cv-bg-surface-2:    #d7dde6;
+  --cv-bg-hover:        #dde3ec;
+  --cv-border:          #cdd5df;
+  --cv-border-strong:   #aeb8c6;
+  --cv-text:            #1e293b;
+  --cv-text-muted:      #52607a;
+  --cv-text-dim:        #8b97a8;
+  --cv-accent:          #2563eb;
+  --cv-accent-dim:      #1d4ed8;
+  --cv-accent-bg:       #e6effd;
+  --cv-accent-border:   #b6d1f7;
+  --cv-accent-text:     #1d4ed8;
+  --cv-accent-hover:    #d7e6fc;
+  --cv-success:         #16a34a;
+  --cv-success-bg:      #e6f6ec;
+  --cv-success-border:  #a7e0bd;
+  --cv-success-text:    #15803d;
+  --cv-success-hover:   #d6f0e0;
+  --cv-warning:         #c2680a;
+  --cv-danger:          #dc2626;
+  --cv-danger-bg:       rgba(220, 38, 38, 0.08);
+}
 
-  [data-theme="light"] {
-    --cv-bg:              #f1f5f9;
-    --cv-bg-header:       #ffffff;
-    --cv-bg-surface:      #f8fafc;
-    --cv-bg-surface-2:    #f1f5f9;
-    --cv-bg-hover:        #e2e8f0;
-    --cv-border:          #e2e8f0;
-    --cv-border-strong:   #cbd5e1;
-    --cv-text:            #0f172a;
-    --cv-text-muted:      #475569;
-    --cv-text-dim:        #94a3b8;
-    --cv-accent-bg:       #eff6ff;
-    --cv-accent-border:   #93c5fd;
-    --cv-accent-text:     #1d4ed8;
-    --cv-success-bg:      #f0fdf4;
-    --cv-success-border:  #86efac;
-    --cv-success-text:    #166534;
-    --cv-bg-hover:        #f1f5f9;
-  }
-*/
+body { transition: background-color 0.2s ease, color 0.2s ease; }
+
+/* Light módban a schemeTableau10 pasztell élszínek elhalványulnak a világos
+   háttéren. Globális szabályok (a gráfot D3 rajzolja, így a komponens-scoped
+   stílus nem érné el): teltebb + sötétebb élek ÉS pillek (egyformán, hogy
+   egyezzenek), vastagabb vonalak, erősebb csomópont-gyűrű. */
+[data-theme="light"] .links path {
+  stroke-width: 2.5;
+  opacity: 1;
+  filter: saturate(1.35) brightness(0.78);
+}
+
+[data-theme="light"] .messages .msg-bg {
+  filter: saturate(1.35) brightness(0.78);
+}
+
+[data-theme="light"] .nodes .node circle {
+  stroke-width: 2.5;
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 

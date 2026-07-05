@@ -6,6 +6,13 @@
   position: relative;
 }
 
+// Mobilon a feltöltő sáv a saját (teljes szélességű) során balra igazodik,
+// a fájl-chip pedig zsugorodhat, hogy ne lógjon ki.
+@media (max-width: 640px) {
+  .upload-root { justify-content: flex-start; }
+  .file-chip { max-width: 100%; flex: 1 1 auto; min-width: 0; }
+}
+
 // ── Buttons ───────────────────────────────────────────────────────────────────
 .upload-actions {
   display: flex;
@@ -79,8 +86,8 @@
   color: var(--cv-success-text);
   border: 1px solid var(--cv-success-border);
 
-  &:hover { background: #0f2a18; }
-  &.active { background: #122e1a; }
+  &:hover { background: var(--cv-success-hover); }
+  &.active { background: var(--cv-success-hover); }
 }
 
 .save-popover {
@@ -132,7 +139,7 @@
   color: var(--cv-success-text);
   border-color: var(--cv-success-border);
 
-  &:hover:not(:disabled) { background: #0f2a18; }
+  &:hover:not(:disabled) { background: var(--cv-success-hover); }
   &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
