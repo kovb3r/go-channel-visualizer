@@ -4,9 +4,6 @@ import {
   collection,
   addDoc,
   getDocs,
-  doc,
-  getDoc,
-  setDoc,
   deleteDoc,
   query,
   orderBy,
@@ -23,16 +20,13 @@ export interface TraceDoc {
   content: TraceFile;
 }
 
-export interface CleanupSettings {
-  cronExpression: string;
-  lastCleanupRun: Timestamp | null;
-}
-
 @Injectable({ providedIn: 'root' })
 export class FirestoreService {
   private fs = inject(Firestore);
 
   async saveTrace(filename: string, content: TraceFile): Promise<void> {
+    // createdAt: a kliensoldali automatikus takarítás (deleteOldTraces) is ez
+    // alapján dönti el, mi a 24 óránál régebbi.
     await addDoc(collection(this.fs, 'traces'), {
       filename,
       createdAt: serverTimestamp(),
@@ -46,27 +40,12 @@ export class FirestoreService {
     return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<TraceDoc, 'id'>) }));
   }
 
-  async deleteOldTraces(olderThanMs: number): Promise<void> {
-    const cutoff = Timestamp.fromDate(new Date(Date.now() - olderThanMs));
+  /** A megadottnál régebbi (createdAt alapján) trace-ek törlése. Hány db törlődött. */
+  async deleteOldTraces(olderThanMs: number): Promise<number> {
+    const cutoff = Timestamp.fromMillis(Date.now() - olderThanMs);
     const q = query(collection(this.fs, 'traces'), where('createdAt', '<', cutoff));
     const snap = await getDocs(q);
     await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
-  }
-
-  async getCleanupSettings(): Promise<CleanupSettings | null> {
-    const snap = await getDoc(doc(this.fs, 'config', 'cleanupSettings'));
-    return snap.exists() ? (snap.data() as CleanupSettings) : null;
-  }
-
-  async updateCleanupSettings(patch: Partial<CleanupSettings>): Promise<void> {
-    await setDoc(doc(this.fs, 'config', 'cleanupSettings'), patch, { merge: true });
-  }
-
-  async markCleanupRun(): Promise<void> {
-    await setDoc(
-      doc(this.fs, 'config', 'cleanupSettings'),
-      { lastCleanupRun: serverTimestamp() },
-      { merge: true },
-    );
+    return snap.size;
   }
 }

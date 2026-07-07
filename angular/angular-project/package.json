@@ -18,6 +18,7 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "croner": "^10.0.1",
     "d3": "^7.9.0",
     "d3.js": "^0.0.2-security",
     "firebase": "^12.15.0",

@@ -1,7 +1,7 @@
 import { Component, NgZone, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { RouterOutlet } from '@angular/router';
+import { Cron } from 'croner';
 import { TraceUploadComponent } from './trace-upload/trace-upload.component';
 import { GraphViewComponent } from './graph-view/graph-view.component';
 import { TraceFile, VizLink, VizNode, VizMessage } from './models/trace.model';
@@ -15,7 +15,6 @@ type EventMarker = { leftPct: number; stackIndex: number };
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     RouterOutlet,
     TraceUploadComponent,
     GraphViewComponent,
@@ -57,10 +56,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private firestoreService = inject(FirestoreService);
 
-  // Cleanup settings state
-  showCleanupPanel = false;
-  cronExpression = '0 0 * * *'; // daily by default
-  cronSettingsSaved = false;
+  // Automatikus törlés: kliensoldali, cron-nal ütemezve (croner). CSAK amíg az
+  // app nyitva van fut — a böngésző zárt tab mellett nem futtat JS-t.
+  private readonly autoDeleteHours = 24;
+  private cleanupCron?: Cron;
+  private readonly CLEANUP_MAX_AGE_MS = this.autoDeleteHours * 60 * 60 * 1000;
 
   // Téma (light / dark)
   theme: 'dark' | 'light' = 'dark';
@@ -95,61 +95,22 @@ export class AppComponent implements OnInit, OnDestroy {
     else root.removeAttribute('data-theme');
   }
 
-  async ngOnInit(): Promise<void> {
-    try {
-      const settings = await this.firestoreService.getCleanupSettings();
-      if (settings?.cronExpression) {
-        this.cronExpression = settings.cronExpression;
-      }
-    } catch { /* ignore if offline */ }
-    await this.runCleanupIfDue();
+  ngOnInit(): void {
+    // Egyszer azonnal takarít a betöltéskor, majd óránként, amíg az app nyitva van.
+    // (Böngészős korlát: zárt tab mellett nem fut — ehhez szerveroldali cron kellene,
+    //  ami viszont Firestore-nál engedélyezett billinget igényelne.)
+    void this.runCleanup();
+    this.zone.runOutsideAngular(() => {
+      this.cleanupCron = new Cron('0 * * * *', () => void this.runCleanup());
+    });
   }
 
-  private async runCleanupIfDue(): Promise<void> {
+  private async runCleanup(): Promise<void> {
     try {
-      const settings = await this.firestoreService.getCleanupSettings();
-      if (!settings) return;
-
-      const shouldRun = this.isCronDue(settings.cronExpression, settings.lastCleanupRun?.toDate() ?? null);
-      if (!shouldRun) return;
-
-      await this.firestoreService.deleteOldTraces(24 * 60 * 60 * 1000); // 24h
-      await this.firestoreService.markCleanupRun();
+      const removed = await this.firestoreService.deleteOldTraces(this.CLEANUP_MAX_AGE_MS);
+      if (removed > 0) console.info(`Cleanup: ${removed} old trace(s) removed from cloud.`);
     } catch (e) {
-      console.warn('Cleanup check failed:', e);
-    }
-  }
-
-  private isCronDue(expression: string, lastRun: Date | null): boolean {
-    if (!lastRun) return true;
-    const parts = expression.trim().split(/\s+/);
-    if (parts.length < 5) return false;
-
-    const [, hourPart, dayPart, , weekPart] = parts;
-    const now = new Date();
-    const diffMs = now.getTime() - lastRun.getTime();
-
-    // Simple interval heuristic based on the cron expression fields
-    if (weekPart !== '*') {
-      return diffMs >= 7 * 24 * 60 * 60 * 1000;
-    }
-    if (dayPart !== '*') {
-      return diffMs >= 30 * 24 * 60 * 60 * 1000;
-    }
-    if (hourPart !== '*') {
-      const h = Number(hourPart);
-      return Number.isFinite(h) && diffMs >= 24 * 60 * 60 * 1000;
-    }
-    return diffMs >= 60 * 60 * 1000;
-  }
-
-  async saveCronSettings(): Promise<void> {
-    try {
-      await this.firestoreService.updateCleanupSettings({ cronExpression: this.cronExpression });
-      this.cronSettingsSaved = true;
-      setTimeout(() => (this.cronSettingsSaved = false), 2000);
-    } catch (e) {
-      console.error('Failed to save cleanup settings:', e);
+      console.warn('Trace cleanup failed:', e);
     }
   }
 
@@ -394,6 +355,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.pause();
+    this.cleanupCron?.stop();
   }
 
   markerLeft(pct: number): string {

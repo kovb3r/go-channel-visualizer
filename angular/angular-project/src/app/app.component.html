@@ -29,29 +29,6 @@
             [attr.aria-label]="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'">
       {{ theme === 'dark' ? '☀' : '☾' }}
     </button>
-
-    <button class="icon-btn"
-            (click)="showCleanupPanel = !showCleanupPanel"
-            [class.active]="showCleanupPanel"
-            title="Cloud cleanup settings"
-            aria-label="Cloud cleanup settings">
-      ⚙
-    </button>
-
-    <!-- Settings dropdown -->
-    <div class="settings-dropdown" *ngIf="showCleanupPanel">
-      <div class="settings-label">Cloud cleanup schedule</div>
-      <div class="settings-row">
-        <input type="text" class="settings-input"
-               [(ngModel)]="cronExpression"
-               placeholder="e.g. 0 0 * * *" />
-        <button class="btn-primary" (click)="saveCronSettings()">Save</button>
-      </div>
-      <div class="settings-hint">
-        Traces older than 24 h are deleted on app start if this schedule is due.
-      </div>
-      <span class="settings-saved" *ngIf="cronSettingsSaved">Saved!</span>
-    </div>
   </header>
 
   <!-- ── Empty state ───────────────────────────────────────────────────────── -->
