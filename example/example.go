@@ -5,6 +5,7 @@ import (
 	"example/wrapper"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -64,7 +65,8 @@ func number2(c wrapper.Channel[int]) {
 	wg.Done()
 }
 
-// szűrés
+// Csővezeték első fázisa: csak a kisbetűket engedi tovább, a '0' zárja a csatornát.
+// Csak küldő nézetet kap, ezért fordítási időben sem tudna róla fogadni.
 func first(in *bufio.Reader, out wrapper.Sender[int]) {
 	reading := true
 
@@ -78,29 +80,34 @@ func first(in *bufio.Reader, out wrapper.Sender[int]) {
 			out.Close()
 		}
 	}
+	wg.Done()
 }
 
-// transzformálás
+// Csővezeték második fázisa: nagybetűssé alakítja a kapott karaktereket.
+// Csak fogadó nézetet kap; a range akkor áll le, amikor az első fázis lezárja a csatornát.
 func second(in wrapper.Receiver[int], out *bufio.Writer) {
 
 	for value := range in.Range() {
 		out.WriteByte(byte(value - 32))
-		out.Flush() // kiürítjük a a writer buffer-ét
+		out.Flush() // kiürítjük a writer bufferét
 	}
 	wg.Done()
 }
 
 func main() {
-	// Három típusos csatorna létrehozása: string, name és int
+	// Négy típusos csatorna: string (pufferelt), saját típus, és két int
 	c := wrapper.CreateChannel[string](3) // pufferelt csatorna
 	n := wrapper.CreateChannel[name]()
 	i := wrapper.CreateChannel[int]()
 	a := wrapper.CreateChannel[int]()
-	in := bufio.NewReader(os.Stdin)
-	out := bufio.NewWriter(os.Stderr)
 
-	// 6 goroutine-t indítunk el
-	wg.Add(7)
+	// A csővezeték bemenete fix szöveg, hogy a program magától lefusson.
+	// A '0' karakter jelzi a bemenet végét.
+	in := bufio.NewReader(strings.NewReader("go channels0"))
+	out := bufio.NewWriter(os.Stdout)
+
+	// 8 goroutine-t indítunk el
+	wg.Add(8)
 	go pong(c)
 	go number2(i)
 	go nameChannel2(n)
