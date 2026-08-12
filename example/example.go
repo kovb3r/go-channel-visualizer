@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"example/wrapper"
 	"fmt"
-	"sync"
-	"bufio"
 	"os"
+	"sync"
 )
 
 var wg sync.WaitGroup // WaitGroup a goroutine-ok befejeződésének megvárásához
@@ -90,8 +90,6 @@ func second(in wrapper.Receiver[int], out *bufio.Writer) {
 	wg.Done()
 }
 
-
-
 func main() {
 	// Három típusos csatorna létrehozása: string, name és int
 	c := wrapper.CreateChannel[string](3) // pufferelt csatorna
@@ -103,12 +101,12 @@ func main() {
 
 	// 6 goroutine-t indítunk el
 	wg.Add(7)
-	go pong(c)    
-    go number2(i)  
-    go nameChannel2(n) 
-    go ping(c)
-    go number(i)
-    go nameChannel(n)
+	go pong(c)
+	go number2(i)
+	go nameChannel2(n)
+	go ping(c)
+	go number(i)
+	go nameChannel(n)
 	go first(in, a.AsSender())
 	go second(a.AsReceiver(), out)
 

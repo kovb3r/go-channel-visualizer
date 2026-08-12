@@ -11,8 +11,8 @@ var logMu sync.Mutex // fájlírás szinkronizálására
 
 // A teljes JSON szerkezete
 type LogData struct {
-	Channels []map[string]any 
-	Events   []Event          
+	Channels []map[string]any
+	Events   []Event
 }
 
 // Globális log struktúra, amit futás közben bővítünk
