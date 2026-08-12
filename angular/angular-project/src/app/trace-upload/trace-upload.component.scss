@@ -13,7 +13,7 @@
   .file-chip { max-width: 100%; flex: 1 1 auto; min-width: 0; }
 }
 
-// ── Buttons ───────────────────────────────────────────────────────────────────
+// gombok
 .upload-actions {
   display: flex;
   align-items: center;
@@ -46,7 +46,7 @@
   &:hover { background: var(--cv-accent-dim); border-color: var(--cv-accent-dim); }
 }
 
-// ── File chip ─────────────────────────────────────────────────────────────────
+// fájl jelző
 .file-chip {
   display: inline-flex;
   align-items: center;
@@ -74,7 +74,7 @@
   flex-shrink: 0;
 }
 
-// ── Save section ──────────────────────────────────────────────────────────────
+// mentés
 .save-section {
   position: relative;
   display: flex;
@@ -146,7 +146,7 @@
 .save-status-ok  { font-size: 11px; color: var(--cv-success); }
 .save-status-err { font-size: 11px; color: var(--cv-danger); }
 
-// ── Error ─────────────────────────────────────────────────────────────────────
+// hiba
 .upload-error {
   font-size: 11px;
   color: var(--cv-danger);
@@ -159,7 +159,7 @@
   text-overflow: ellipsis;
 }
 
-// ── Cloud modal ───────────────────────────────────────────────────────────────
+// felhő ablak
 .cloud-modal {
   position: fixed;
   inset: 0;

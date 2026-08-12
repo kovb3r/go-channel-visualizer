@@ -1,6 +1,5 @@
 import { Component, NgZone, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet } from '@angular/router';
 import { Cron } from 'croner';
 import { TraceUploadComponent } from './trace-upload/trace-upload.component';
 import { GraphViewComponent } from './graph-view/graph-view.component';
@@ -8,14 +7,13 @@ import { TraceFile, VizLink, VizNode, VizMessage } from './models/trace.model';
 import { TraceParserService } from './services/trace-parser.service';
 import { FirestoreService } from './services/firestore.service';
 
-type EventMarker = { leftPct: number; stackIndex: number };
+type EventMarker = { leftPct: number };
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
     CommonModule,
-    RouterOutlet,
     TraceUploadComponent,
     GraphViewComponent,
   ],
@@ -23,41 +21,43 @@ type EventMarker = { leftPct: number; stackIndex: number };
   styleUrls: ['./app.component.scss'],
 })
 export class AppComponent implements OnInit, OnDestroy {
-  title = 'angular-project';
-
   // A kirajzoláshoz szükséges adatok (gyerek komponens bemenetei)
   allNodes: VizNode[] = [];
   allLinks: VizLink[] = [];
   allMessages: VizMessage[] = [];
 
-  eventFilmMs: number[] = [];
-  eventMarkers: EventMarker[] = [];
+  eventFilmMs: number[] = []; // küldési időpontok film ms-ben, a Prev/Next ugráshoz
+  eventMarkers: EventMarker[] = []; // sárga pöttyök helye a csúszkán (%)
   sliderThumbPx = 16; // kb. a range thumb szélessége
 
-  msgTravelFilmMs = 800;
+  msgTravelFilmMs = 800; // egy üzenet ennyi film ms alatt ér át a másik csúcsba
 
   showArrived = false;
 
   // lejátszó állapot
   clock = 0;
   realDuration = 0; // trace valós hossza (ms)
-  filmDuration = 0; // UI / slider hossza (ms) -> alapból 30s
+  filmDuration = 0; // UI / slider aktív hossza (ms); trace betöltésekor = filmSettingMs
   clockReal = 0; // valós óra (ms) -> ezt kapja a graph-view
   playing = false;
   speed = 1000; // film ms / sec, azaz 1000 = 1x, 2000 = 2x, 500 = 0.5x, stb.
   speedSlider = 50; // 0..100; közép = 1x
 
-  private readonly MIN_SPEED_FACTOR = 0.01; // bal szélen 0.01x
-  private readonly MAX_SPEED_FACTOR = 20; // jobb szélen 20x
-  private readonly FIXED_FILM_MS = 20_000;
+  // log skála, 1x középen: 0.25x - 0.5x - 1x - 2x - 4x
+  private readonly MIN_SPEED_FACTOR = 0.25; // bal szélen 0.25x
+  private readonly MAX_SPEED_FACTOR = 4; // jobb szélen 4x
+
+  // állítható film hossz (ms); trace betöltésekor ez lesz a filmDuration
+  filmSettingMs = 20_000;
+  private readonly MIN_FILM_MS = 3_000; // a msgTravel 800ms-nál nagyobb kell legyen
+  private readonly MAX_FILM_MS = 120_000;
 
   private rafId: number | null = null;
   private lastFrameTs: number | null = null;
 
   private firestoreService = inject(FirestoreService);
 
-  // Automatikus törlés: kliensoldali, cron-nal ütemezve (croner). CSAK amíg az
-  // app nyitva van fut — a böngésző zárt tab mellett nem futtat JS-t.
+  // automatikus törlés cronnal; csak addig fut, amíg az app nyitva van
   private readonly autoDeleteHours = 24;
   private cleanupCron?: Cron;
   private readonly CLEANUP_MAX_AGE_MS = this.autoDeleteHours * 60 * 60 * 1000;
@@ -72,11 +72,12 @@ export class AppComponent implements OnInit, OnDestroy {
     this.initTheme();
   }
 
+  // mentett téma betöltése, alapértelmezés a sötét
   private initTheme(): void {
     let saved: string | null = null;
     try {
       saved = localStorage.getItem('cv-theme');
-    } catch { /* ignore */ }
+    } catch {}
     this.theme = saved === 'light' ? 'light' : 'dark';
     this.applyTheme();
   }
@@ -85,10 +86,11 @@ export class AppComponent implements OnInit, OnDestroy {
     this.theme = this.theme === 'dark' ? 'light' : 'dark';
     try {
       localStorage.setItem('cv-theme', this.theme);
-    } catch { /* ignore */ }
+    } catch {}
     this.applyTheme();
   }
 
+  // a data-theme attribútum vezérli a light paletta CSS változóit
   private applyTheme(): void {
     const root = document.documentElement;
     if (this.theme === 'light') root.setAttribute('data-theme', 'light');
@@ -96,15 +98,14 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Egyszer azonnal takarít a betöltéskor, majd óránként, amíg az app nyitva van.
-    // (Böngészős korlát: zárt tab mellett nem fut — ehhez szerveroldali cron kellene,
-    //  ami viszont Firestore-nál engedélyezett billinget igényelne.)
+    // takarítás betöltéskor, majd óránként
     void this.runCleanup();
     this.zone.runOutsideAngular(() => {
       this.cleanupCron = new Cron('0 * * * *', () => void this.runCleanup());
     });
   }
 
+  // a 24 óránál régebbi trace-ek törlése a felhőből
   private async runCleanup(): Promise<void> {
     try {
       const removed = await this.firestoreService.deleteOldTraces(this.CLEANUP_MAX_AGE_MS);
@@ -114,22 +115,14 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  get speedFactor(): number {
-    return this.speed / 1000;
-  }
-
   /** Feltöltött és alap-validált nyers JSON itt érkezik. */
   onTraceLoaded(raw: TraceFile) {
     try {
       // 1) idő-normalizálás
       const norm = this.parser.toNormalized(raw);
-      const eventsCount = norm.events.length ?? 0;
 
       this.realDuration = Math.max(0, norm.t1 - norm.t0);
-      this.filmDuration = this.computeFilmDuration(
-        this.realDuration,
-        eventsCount,
-      );
+      this.filmDuration = this.computeFilmDuration();
 
       // 2) viz gráf előállítása
       const viz = this.parser.toVizGraph(norm);
@@ -146,12 +139,9 @@ export class AppComponent implements OnInit, OnDestroy {
       this.clock = 0;
       this.syncRealClockFromFilmClock();
       this.rebuildEventMarkers();
-
-      // fejlesztéshez:
-      console.log('viz graph:', viz);
     } catch (e) {
       console.error(e);
-      alert((e as any)?.message ?? 'Hiba a trace feldolgozásakor.');
+      alert((e as any)?.message ?? 'Failed to process the trace.');
     }
   }
 
@@ -171,12 +161,20 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   // ===== vezérlők =====
+
+  // lejátszás indítása / szüneteltetése
   togglePlay(): void {
     if (this.playing) {
       this.stopPlayback();
       return;
     }
     if (this.filmDuration <= 0) return; // nincs mit lejátszani
+
+    // Ha a lejátszás a végén áll, a Play induljon elölről (ne kelljen a ⟲).
+    if (this.clock >= this.filmDuration) {
+      this.clock = 0;
+      this.syncRealClockFromFilmClock();
+    }
 
     this.playing = true;
     this.lastFrameTs = null;
@@ -204,6 +202,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.rafId = requestAnimationFrame((t) => this.onFrame(t));
   }
 
+  // lejátszás leállítása és a futó animációs keret eldobása
   private stopPlayback(): void {
     this.playing = false;
     this.lastFrameTs = null;
@@ -213,64 +212,14 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  play() {
-    if (this.playing || this.filmDuration <= 0) return;
-    this.playing = true;
-    this.lastFrameTs = null;
-
-    // RAF loop (kívül Angularon, hogy ne darálja a CD-t minden frame)
-    this.zone.runOutsideAngular(() => {
-      const tick = (ts: number) => {
-        if (!this.playing) return;
-
-        if (this.lastFrameTs === null) this.lastFrameTs = ts;
-        const dtSec = (ts - this.lastFrameTs) / 1000; // valós idő (sec)
-        this.lastFrameTs = ts;
-
-        const next = this.clock + dtSec * this.speed; // trace ms
-
-        // vissza Angularba csak a state frissítéshez
-        this.zone.run(() => {
-          this.clock = Math.min(this.filmDuration, Math.round(next));
-
-          // ha elértük a végét: álljunk meg (később lehet loop opció)
-          if (this.clock >= this.filmDuration) {
-            this.pause();
-            return;
-          }
-        });
-
-        this.rafId = requestAnimationFrame(tick);
-      };
-
-      this.rafId = requestAnimationFrame(tick);
-    });
-  }
-
-  pause() {
-    this.playing = false;
-    this.lastFrameTs = null;
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = null;
-    }
-  }
-
+  // vissza a film elejére, megállítva
   restart() {
     this.stopPlayback();
     this.clock = 0;
     this.syncRealClockFromFilmClock();
   }
 
-  step(deltaFilmMs: number) {
-    this.stopPlayback();
-    this.clock = Math.max(
-      0,
-      Math.min(this.filmDuration, this.clock + deltaFilmMs),
-    );
-    this.syncRealClockFromFilmClock();
-  }
-
+  // sebesség csúszka mozgatása
   onSpeedInput(evt: Event) {
     const input = evt.target as HTMLInputElement;
     const sliderValue = Number(input.value);
@@ -282,27 +231,29 @@ export class AppComponent implements OnInit, OnDestroy {
     this.speed = Math.round(factor * 1000);
   }
 
+  // csúszka pozíció (0..100) -> sebesség szorzó, logaritmikusan
   private sliderToFactor(slider: number): number {
     const s = Math.max(0, Math.min(100, slider));
 
-    // 0..50  => 0.01x .. 1x
+    // 0..50 => MIN_SPEED_FACTOR .. 1x
     if (s <= 50) {
       const t = s / 50;
       return this.MIN_SPEED_FACTOR * Math.pow(1 / this.MIN_SPEED_FACTOR, t);
     }
 
-    // 50..100 => 1x .. 20x
+    // 50..100 => 1x .. MAX_SPEED_FACTOR
     const t = (s - 50) / 50;
     return Math.pow(this.MAX_SPEED_FACTOR, t);
   }
 
+  // sliderToFactor inverze: szorzó -> csúszka pozíció
   private factorToSlider(factor: number): number {
     const f = Math.max(
       this.MIN_SPEED_FACTOR,
       Math.min(this.MAX_SPEED_FACTOR, factor),
     );
 
-    // 0.01x .. 1x
+    // MIN_SPEED_FACTOR .. 1x
     if (f <= 1) {
       const t =
         Math.log(f / this.MIN_SPEED_FACTOR) /
@@ -310,11 +261,12 @@ export class AppComponent implements OnInit, OnDestroy {
       return Math.round(t * 50);
     }
 
-    // 1x .. 20x
+    // 1x .. MAX_SPEED_FACTOR
     const t = Math.log(f) / Math.log(this.MAX_SPEED_FACTOR);
     return Math.round(50 + t * 50);
   }
 
+  // sebesség beállítása film ms/sec értékkel (1000 = 1x), a csúszkát is igazítja
   setSpeed(v: number) {
     const factor = Math.max(
       this.MIN_SPEED_FACTOR,
@@ -354,10 +306,11 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.pause();
+    this.stopPlayback();
     this.cleanupCron?.stop();
   }
 
+  // egy esemény-jelölő bal pozíciója CSS calc-ként
   markerLeft(pct: number): string {
     const thumb = this.sliderThumbPx; // px
     // (100% - thumb) sávon mozog a thumb közepe, ezért így pozicionálunk
@@ -379,11 +332,43 @@ export class AppComponent implements OnInit, OnDestroy {
     );
   }
 
-  /** Minden trace fixen 15 másodperces filmidőt kap. */
-  private computeFilmDuration(_realMs: number, _eventsCount: number): number {
-    return this.FIXED_FILM_MS;
+  /** A film hossza a felhasználó által állított érték (alapból 20s). */
+  private computeFilmDuration(): number {
+    return this.filmSettingMs;
   }
 
+  /** A lejátszási (film) hossz módosítása ms-ban, élő trace-nél átskálázva. */
+  onFilmLengthInput(evt: Event): void {
+    const input = evt.target as HTMLInputElement;
+    const raw = Number(input.value);
+
+    // Üres / érvénytelen bevitelnél visszaállítjuk a jelenlegi értéket
+    if (!input.value.trim() || !Number.isFinite(raw)) {
+      input.value = String(this.filmSettingMs);
+      return;
+    }
+
+    const nextMs = Math.round(
+      Math.max(this.MIN_FILM_MS, Math.min(this.MAX_FILM_MS, raw)),
+    );
+    input.value = String(nextMs); // a klampolt érték visszaírása a mezőbe
+    const prev = this.filmDuration;
+    this.filmSettingMs = nextMs;
+
+    // Ha van betöltött trace, tartsuk meg a playhead relatív pozícióját és
+    // építsük újra a filmidő-függő származtatott értékeket.
+    if (prev > 0) {
+      const frac = this.clock / prev;
+      this.filmDuration = nextMs;
+      this.clock = Math.round(frac * nextMs);
+      this.eventFilmMs = this.buildEventFilmMs();
+      this.rebuildEventMarkers();
+      this.syncRealClockFromFilmClock();
+    }
+  }
+
+  // valós ms -> film ms a küldésekhez; a travel-lel csökkentett sávra skáláz,
+  // hogy az utolsó üzenet még a film vége előtt beérjen
   private realToFilmMsForSend(realMs: number): number {
     const travel = Math.max(1, this.msgTravelFilmMs);
     const usableFilm = Math.max(1, this.filmDuration - travel - 1);
@@ -393,6 +378,7 @@ export class AppComponent implements OnInit, OnDestroy {
     return realMs * ratio; // film ms
   }
 
+  // sárga pöttyök újraszámolása a csúszkára (minden üzenet küldési pillanata)
   private rebuildEventMarkers(): void {
     if (this.filmDuration <= 0 || this.realDuration <= 0) {
       this.eventMarkers = [];
@@ -407,14 +393,7 @@ export class AppComponent implements OnInit, OnDestroy {
       return Math.max(0, Math.min(100, pct));
     });
 
-    // stacking: ha ugyanoda esik több, tegyük egymás fölé (nem dobunk el semmit!)
-    const counts = new Map<string, number>();
-    this.eventMarkers = rawPercents.map((pct) => {
-      const key = pct.toFixed(3); // elég finom, nem von össze “véletlenül”
-      const idx = counts.get(key) ?? 0;
-      counts.set(key, idx + 1);
-      return { leftPct: pct, stackIndex: idx };
-    });
+    this.eventMarkers = rawPercents.map((pct) => ({ leftPct: pct }));
   }
 
   // sendAt-ok (real ms) -> film ms, kerekítve, duplikátum nélkül, rendezve

@@ -1,3 +1,6 @@
+/// <reference types="jasmine" />
+// a szerkesztő a build tsconfigot nézi (types: []), ezért kell ide a jasmine
+
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { GraphViewComponent } from './graph-view.component';

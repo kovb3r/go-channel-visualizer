@@ -2,7 +2,7 @@
   <input #fileInput type="file" accept="application/json,.json"
          (change)="onFileChange($event)" hidden />
 
-  <!-- Action buttons -->
+  <!-- gombok -->
   <div class="upload-actions">
     <button class="hbtn primary" (click)="onPickFileClick(fileInput)">
       ↑ Upload trace
@@ -12,13 +12,13 @@
     </button>
   </div>
 
-  <!-- File chip: shown when a trace is successfully loaded -->
+  <!-- betöltött fájl jelzése -->
   <div class="file-chip" *ngIf="fileName && !error">
     <span class="chip-name" [title]="fileName">{{ fileName }}</span>
     <span class="chip-meta" *ngIf="summary">· {{ summary.channels }}ch / {{ summary.events }}ev</span>
   </div>
 
-  <!-- Save to cloud: shown when trace is loaded -->
+  <!-- mentés felhőbe -->
   <div class="save-section" *ngIf="summary && !error">
     <label class="hbtn save-toggle" [class.active]="saveToCloud" title="Save to cloud">
       <input type="checkbox" [(ngModel)]="saveToCloud" hidden />
@@ -40,10 +40,10 @@
     </div>
   </div>
 
-  <!-- Error indicator -->
+  <!-- hibaüzenet -->
   <div class="upload-error" *ngIf="error" [title]="error">⚠ {{ error }}</div>
 
-  <!-- Cloud traces modal -->
+  <!-- mentett trace-ek listája -->
   <div class="cloud-modal" *ngIf="showCloudList">
     <div class="cloud-modal-inner">
       <div class="cloud-modal-header">

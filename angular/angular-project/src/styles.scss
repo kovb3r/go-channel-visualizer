@@ -29,8 +29,7 @@
   --cv-header-h:        58px;
 }
 
-/* Light mode – aktiválás: data-theme="light" a <html>-en (a fejléc kapcsolójával).
-   Lágy, hűvös szürke paletta (nem vakító fehér), tónusos gráf-háttérrel. */
+/* világos téma: data-theme="light" a <html>-en */
 [data-theme="light"] {
   --cv-bg:              #e7ebf1;
   --cv-bg-header:       #f2f4f8;
@@ -60,10 +59,8 @@
 
 body { transition: background-color 0.2s ease, color 0.2s ease; }
 
-/* Light módban a schemeTableau10 pasztell élszínek elhalványulnak a világos
-   háttéren. Globális szabályok (a gráfot D3 rajzolja, így a komponens-scoped
-   stílus nem érné el): teltebb + sötétebb élek ÉS pillek (egyformán, hogy
-   egyezzenek), vastagabb vonalak, erősebb csomópont-gyűrű. */
+/* világos háttéren a pasztell élszínek elhalványulnak, ezért teltebbek lesznek.
+   Globálisan kell, mert a gráfot D3 rajzolja (nincs rajta komponens-scope). */
 [data-theme="light"] .links path {
   stroke-width: 2.5;
   opacity: 1;

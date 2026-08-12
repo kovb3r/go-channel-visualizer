@@ -18,7 +18,6 @@ export class TraceUploadComponent {
 
   // meglévő mezők
   fileName: string | null = null;
-  fileSize: number | null = null;
   summary: { channels: number; events: number } | null = null;
   error: string | null = null;
 
@@ -39,6 +38,7 @@ export class TraceUploadComponent {
     input.click();
   }
 
+  // fájl kiválasztása: beolvasás, JSON parse, alap-ellenőrzés, majd továbbadás
   async onFileChange(evt: Event) {
     this.resetUi();
     const input = evt.target as HTMLInputElement;
@@ -46,7 +46,6 @@ export class TraceUploadComponent {
     if (!file) return;
 
     this.fileName = file.name;
-    this.fileSize = file.size;
 
     try {
       const text = await file.text();
@@ -72,10 +71,12 @@ export class TraceUploadComponent {
     await this.saveToFirestore(this.currentTrace);
   }
 
+  // menteni csak betöltött trace-t lehet, névvel együtt
   get canSave(): boolean {
     return !!this.currentTrace && this.traceName.trim().length > 0;
   }
 
+  // mentés a felhőbe, a névhez időbélyeget fűzve
   private async saveToFirestore(data: TraceFile): Promise<void> {
     this.saveStatus = 'saving';
     try {
@@ -98,6 +99,7 @@ export class TraceUploadComponent {
     }
   }
 
+  // felhőben mentett trace-ek listájának lekérése
   async openCloudList(): Promise<void> {
     this.showCloudList = true;
     this.cloudLoading = true;
@@ -115,6 +117,7 @@ export class TraceUploadComponent {
     this.showCloudList = false;
   }
 
+  // felhőbeli trace betöltése ugyanazon az úton, mint a helyi fájl
   async loadCloudTrace(trace: TraceDoc): Promise<void> {
     this.showCloudList = false;
     this.resetUi();
@@ -125,6 +128,7 @@ export class TraceUploadComponent {
         channels: Array.isArray(trace.content.Channels) ? trace.content.Channels.length : 0,
         events: Array.isArray(trace.content.Events) ? trace.content.Events.length : 0,
       };
+      this.currentTrace = trace.content; // enélkül a Save gomb végig tiltva maradna
       this.loaded.emit(trace.content);
     } catch (e: any) {
       this.error = e?.message ?? 'Invalid trace data from cloud.';
@@ -139,6 +143,8 @@ export class TraceUploadComponent {
     }
   }
 
+  // szerkezet-ellenőrzés: a két tömb megléte, és mintaként az első elemük
+  // (a részletes hibákat a parser dobja majd)
   private basicValidate(data: TraceFile) {
     if (!data || typeof data !== 'object') {
       throw new Error('The file does not contain the expected object.');
@@ -167,11 +173,11 @@ export class TraceUploadComponent {
     }
   }
 
+  // új betöltés előtt minden korábbi állapot törlése
   private resetUi() {
     this.error = null;
     this.summary = null;
     this.fileName = null;
-    this.fileSize = null;
     this.saveStatus = 'idle';
     this.saveError = '';
     this.currentTrace = null;

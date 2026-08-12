@@ -11,9 +11,8 @@ svg {
   height: 100%;
 }
 
+// blend mód nélkül, hogy az él színe egyezzen az üzenet-pill hátterével
 .links path {
-  // Nincs blend mód: az él megjelenített színe pontosan a csatorna színe,
-  // így egyezik a rajta utazó üzenet-pill hátterével.
   stroke-linecap: round;
 }
 

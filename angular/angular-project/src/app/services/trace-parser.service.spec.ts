@@ -1,3 +1,6 @@
+/// <reference types="jasmine" />
+// a szerkesztő a build tsconfigot nézi (types: []), ezért kell ide a jasmine
+
 import { TestBed } from '@angular/core/testing';
 
 import { TraceParserService } from './trace-parser.service';

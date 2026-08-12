@@ -1,11 +1,11 @@
-<!-- ── App shell ──────────────────────────────────────────────────────────── -->
+<!-- váz -->
 <div class="app-shell">
 
-  <!-- Header -->
+  <!-- fejléc -->
   <header class="app-header">
     <div class="header-logo">
       <svg class="logo-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
         <circle cx="5"  cy="12" r="2.5"/>
         <circle cx="19" cy="5"  r="2.5"/>
         <circle cx="19" cy="19" r="2.5"/>
@@ -31,11 +31,11 @@
     </button>
   </header>
 
-  <!-- ── Empty state ───────────────────────────────────────────────────────── -->
+  <!-- üres állapot -->
   <div class="empty-state" *ngIf="filmDuration <= 0">
     <div class="empty-card">
       <svg class="empty-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor"
-           stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
         <circle cx="12" cy="32" r="7"/>
         <circle cx="52" cy="14" r="7"/>
         <circle cx="52" cy="50" r="7"/>
@@ -52,13 +52,12 @@
     </div>
   </div>
 
-  <!-- ── Main view: graph + controls ──────────────────────────────────────── -->
+  <!-- fő nézet: gráf + vezérlők -->
   <main class="main-view" *ngIf="filmDuration > 0">
     <app-graph-view
       [nodes]="allNodes"
       [links]="allLinks"
       [messages]="allMessages"
-      [clockReal]="clockReal"
       [clockFilm]="clock"
       [realDuration]="realDuration"
       [filmDuration]="filmDuration"
@@ -66,20 +65,28 @@
       [msgTravelFilmMs]="msgTravelFilmMs">
     </app-graph-view>
 
-    <!-- Controls bar -->
+    <!-- vezérlősáv -->
     <div class="controls-bar">
 
-      <!-- Time readout -->
+      <!-- időkijelző -->
       <div class="time-info">
         <span class="time-pct">{{ clock / filmDuration * 100 | number:'1.0-0' }}%</span>
+
         <span class="time-detail">
-          film {{ clock | number:'1.0-0' }} / {{ filmDuration | number:'1.0-0' }} ms
+          film {{ clock | number:'1.0-0' }} /
+          <!-- A film totál hossza közvetlenül itt szerkeszthető (ms) -->
+          <input class="film-length-input" type="number"
+                [min]="3000" [max]="120000" step="1000"
+                [value]="filmSettingMs" (change)="onFilmLengthInput($event)"
+                title="Playback length (ms)"
+                aria-label="Playback length in milliseconds" />
+          ms
           <span class="time-sep">·</span>
           real {{ clockReal | number:'1.0-0' }} / {{ realDuration | number:'1.0-0' }} ms
         </span>
       </div>
 
-      <!-- Timeline slider -->
+      <!-- idővonal csúszka -->
       <div class="slider-wrap">
         <!-- Track overlay + esemény-jelölők + range input egy rétegben -->
         <div class="track-container">
@@ -92,16 +99,16 @@
                 [style.left]="markerLeft(m.leftPct)">
           </span>
           <input class="timeline-slider"
-                 type="range"
-                 [min]="0"
-                 [max]="filmDuration"
-                 [step]="1"
-                 [value]="clock"
-                 (input)="onClockInput($event)" />
+                type="range"
+                [min]="0"
+                [max]="filmDuration"
+                [step]="1"
+                [value]="clock"
+                (input)="onClockInput($event)" />
         </div>
       </div>
 
-      <!-- Playback row -->
+      <!-- lejátszó gombok -->
       <div class="playback-row">
         <div class="playback-btns">
           <button class="ctrl-btn" (click)="restart()" [disabled]="filmDuration <= 0" title="Restart">
@@ -122,7 +129,7 @@
           <label class="speed-wrap">
             <span class="speed-label">Speed</span>
             <input type="range" min="0" max="100" step="1"
-                   [value]="speedSlider" (input)="onSpeedInput($event)" />
+                  [value]="speedSlider" (input)="onSpeedInput($event)" />
             <span class="speed-val">{{ speed / 1000 | number:'1.1-2' }}×</span>
           </label>
 
@@ -136,5 +143,3 @@
     </div>
   </main>
 </div>
-
-<router-outlet />

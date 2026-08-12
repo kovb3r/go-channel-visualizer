@@ -24,7 +24,7 @@ export class TraceParserService {
   // - hibát dob, ha az eredmény nem érvényes szám
   private parseTimeMs(iso: string): number {
     const n = Date.parse(this.normalizeIso(iso));
-    if (!Number.isFinite(n)) throw new Error(`Érvénytelen időbélyeg: "${iso}"`);
+    if (!Number.isFinite(n)) throw new Error(`Invalid timestamp: "${iso}"`);
     return n;
   }
 
@@ -45,7 +45,6 @@ export class TraceParserService {
         createdAt: t,
         buffered: ch.buffered ?? false,
         bufferSize: ch.bufferSize ?? 0,
-        firstUseAt: null,
       };
     });
 
@@ -67,7 +66,7 @@ export class TraceParserService {
 
     // ha nincs legalább egy időbélyeg, nincs értelme folytatni
     if (allTimes.length === 0) {
-      throw new Error('A fájl nem tartalmaz érvényes időbélyegeket.');
+      throw new Error('The file does not contain any valid timestamps.');
     }
 
     // t0 = legkisebb idő, t1 = legnagyobb idő (ms)
@@ -85,7 +84,6 @@ export class TraceParserService {
       createdAt: c.createdAt - t0,
       buffered: c.buffered,
       bufferSize: c.bufferSize,
-      firstUseAt: c.firstUseAt,
     }));
 
     return { channels, events, t0, t1 };
@@ -154,6 +152,7 @@ export class TraceParserService {
     return { nodes, links };
   }
 
+  // toVizMessages: eseményenként egy animálható üzenet (sendAt/recvAt már t0-hoz képest)
   toVizMessages(trace: NormalizedTrace): VizMessage[] {
     return (trace.events ?? []).map((e) => ({
       id: e.msg,

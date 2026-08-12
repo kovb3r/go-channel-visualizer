@@ -25,7 +25,6 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() nodes: VizNode[] = [];
   @Input() links: VizLink[] = [];
   @Input() messages: VizMessage[] = [];
-  @Input() clockReal = 0;
   @Input() clockFilm = 0;
   @Input() realDuration = 0;
   @Input() filmDuration = 0;
@@ -57,9 +56,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
   private width = 1000;
   private height = 640;
 
-  // Determinisztikus csatorna -> szín leképezés. Szándékosan NEM d3.scaleOrdinal:
-  // az ordinal skála állapotfüggő (ismeretlen értékre bővíti a domaint), ami a
-  // link- és pill-festés között eltérő színt adhatott ugyanarra a csatornára.
+  // csatorna -> szín, a csatorna ID-k rendezett sorrendje szerint
   private chColorMap = new Map<number, string>();
   private viewReady = false;
 
@@ -96,8 +93,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
     this.sim?.stop();
   }
 
-  // A tényleges konténer-méret kiolvasása, hogy a gráf a teljes rendelkezésre
-  // álló területet használja (nincs fix 1000×640-es letterbox).
+  // a gráf a teljes rendelkezésre álló területet használja
   private measureSize(): void {
     const rect = this.svgRef.nativeElement.getBoundingClientRect();
     this.width = Math.max(320, Math.round(rect.width) || this.width);
@@ -136,7 +132,6 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
     if (ch['nodes'] || ch['links'] || ch['messages']) {
       this.draw();
     } else if (
-      ch['clockReal'] ||
       ch['clockFilm'] ||
       ch['realDuration'] ||
       ch['filmDuration'] ||
@@ -164,8 +159,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
 
     this.svg.selectAll('*').remove();
 
-    // Nincs külön clipPath: az SVG overflow:hidden vág, és így a vágódoboz
-    // NEM skálázódik együtt a zoommal (a clip a zoomolt csoporton ült korábban).
+    // a vágást az SVG overflow:hidden végzi, így a zoom nem skálázza a vágódobozt
     this.gViewport = this.svg.append('g').attr('class', 'viewport');
 
     this.gLinks = this.gViewport.append('g').attr('class', 'links');
@@ -179,12 +173,24 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
   }
 
   private draw() {
+    // üres gráfnál minden réteget újra létre kell hozni, különben az üzenet-
+    // és badge-rétegek a törölt DOM-ra mutatnának
     if (!this.nodes?.length && !this.links?.length) {
       this.gViewport.selectAll('*').remove();
       this.gLinks = this.gViewport.append('g').attr('class', 'links');
       this.gNodes = this.gViewport.append('g').attr('class', 'nodes');
+      this.gMsgs = this.gViewport.append('g').attr('class', 'messages');
+      this.gArrived = this.gViewport.append('g').attr('class', 'arrived');
+      this.gTooltip = this.gViewport
+        .append('g')
+        .attr('class', 'arrived-tooltip')
+        .style('pointer-events', 'none');
       return;
     }
+
+    // trace-váltáskor a korábbi rögzített popoverek nem élnek tovább
+    this.pinnedArrived.clear();
+    this.hoveredArrived = null;
 
     // Determinisztikus, hívási sorrendtől független csatorna-színek
     const palette = d3.schemeTableau10;
@@ -202,7 +208,6 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
       id: l.id,
       ch: l.ch,
       buffered: l.buffered,
-      bufferSize: l.bufferSize,
       appearAt: l.appearAt ?? 0,
       source: String(l.source),
       target: String(l.target),
@@ -249,6 +254,11 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
       .attr('stroke-dasharray', (d: any) => (d.buffered ? '6,4' : null));
 
     this.linkSel = linkEnter.merge(this.linkSel as any);
+    // szín és szaggatás minden draw()-nál: trace-váltáskor az id-k átfedhetnek,
+    // ilyenkor az enter üres marad
+    this.linkSel
+      .attr('stroke', (d) => this.colorForCh(d.ch))
+      .attr('stroke-dasharray', (d: any) => (d.buffered ? '6,4' : null));
 
     this.nodeSel = this.gNodes
       .selectAll<SVGGElement, SimNode>('g.node')
@@ -324,6 +334,9 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
 
     this.msgSel = msgEnter.merge(this.msgSel as any);
 
+    // pill háttere minden draw()-nál, hogy egyezzen az él színével
+    this.msgSel.select<SVGRectElement>('rect.msg-bg').style('fill', (d) => this.colorForCh(d.ch));
+
     // Szöveg + a hátteret a szöveg köré méretezzük
     this.msgSel.select<SVGTextElement>('text.msg-label').text((d) => this.formatMsgValue(d.value));
     this.sizeMessagePills();
@@ -396,6 +409,8 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
     };
   }
 
+  // fokozatos megjelenítés: csak az addig már "megszületett" csúcsok, élek és
+  // az épp úton lévő üzenetek látszanak az aktuális filmidőben
   private applyVisibility() {
     const nowFilm = this.clockFilm ?? 0;
 
@@ -427,6 +442,8 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
     }
   }
 
+  // a szimuláció minden lépésénél: pozíciók a látható területre szorítva,
+  // majd az élek, csúcsok, üzenetek és badge-ek újrarajzolása
   private onTick(nodes: SimNode[], _links: SimLink[]) {
     const margin = 30;
 
@@ -453,6 +470,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
     this.updateArrivedPositionsOnly();
   }
 
+  // üzenet értékének rövid, megjeleníthető alakja (30 karakter felett vágva)
   private formatMsgValue(v: any): string {
     if (v === null || v === undefined) return 'null';
     if (typeof v === 'string') return v.length > 30 ? v.slice(0, 30) + '…' : v;
@@ -465,6 +483,8 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
     }
   }
 
+  // csúcsonként összegyűjti a már megérkezett értékeket, és kirakja a
+  // darabszám-badge-et; a lista a badge popoverjében látszik
   private updateArrivedLists(): void {
     if (!this.gArrived) return;
 
@@ -584,7 +604,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
     for (const id of this.visibleTooltipIds()) this.renderArrivedTooltip(id);
   }
 
-  // Csak a badge-körvonalak frissítése (pin jelzés) – teljes újraépítés nélkül.
+  // csak a badge-körvonalak frissítése (pin jelzés), teljes újraépítés nélkül
   private updateArrivedBadgeStyles(): void {
     if (!this.arrivedSel) return;
     this.arrivedSel.each((d, i, groups) => {
@@ -787,6 +807,7 @@ export class GraphViewComponent implements OnChanges, AfterViewInit, OnDestroy {
     });
   }
 
+  // valós ms -> film ms; ugyanaz a skála, mint az app oldalán a jelölőknél
   private realToFilmMs(realMs: number): number {
     const travel = Math.max(1, this.msgTravelFilmMs ?? 800);
     const usableFilm = Math.max(1, (this.filmDuration ?? 0) - travel - 1);
@@ -807,7 +828,6 @@ type SimLink = d3.SimulationLinkDatum<SimNode> & {
   id: string;
   ch: number;
   buffered?: boolean;
-  bufferSize?: number;
   appearAt?: number;
   source: string | SimNode;
   target: string | SimNode;

@@ -34,7 +34,6 @@ export interface NormalizedChannel {
     createdAt: number; // ms, t0-hoz képest
     buffered: boolean;
     bufferSize: number;
-    firstUseAt: number | null; // első használat (ms, t0-hoz képest)
 }
 
 export interface NormalizedEvent {

@@ -1,4 +1,4 @@
-// ── App shell ────────────────────────────────────────────────────────────────
+// váz
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -6,7 +6,7 @@
   overflow: hidden;
 }
 
-// ── Header ───────────────────────────────────────────────────────────────────
+// fejléc
 .app-header {
   position: relative;
   display: flex;
@@ -73,7 +73,7 @@
   }
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
+// üres állapot
 .empty-state {
   flex: 1;
   display: flex;
@@ -120,7 +120,7 @@
   }
 }
 
-// ── Main view ─────────────────────────────────────────────────────────────────
+// fő nézet
 .main-view {
   flex: 1;
   display: flex;
@@ -135,7 +135,7 @@ app-graph-view {
   display: block;
 }
 
-// ── Controls bar ──────────────────────────────────────────────────────────────
+// vezérlősáv
 .controls-bar {
   flex-shrink: 0;
   background: var(--cv-bg-header);
@@ -168,7 +168,7 @@ app-graph-view {
   color: var(--cv-border-strong);
 }
 
-// Slider
+// csúszka
 .slider-wrap {
   margin-bottom: 6px;
 }
@@ -185,7 +185,7 @@ app-graph-view {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  left: 8px;   // fél-thumb offset (16px thumb / 2) — igazodik a markerLeft()-hez
+  left: 8px;   // fél-thumb offset (16px thumb / 2), igazodik a markerLeft()-hez
   right: 8px;
   height: 8px;
   background: var(--cv-border);
@@ -271,7 +271,7 @@ app-graph-view {
   }
 }
 
-// Playback
+// lejátszás
 .playback-row {
   display: flex;
   align-items: center;
@@ -346,6 +346,44 @@ app-graph-view {
   color: var(--cv-text-dim);
 }
 
+// A film totál hossza közvetlenül a readoutban szerkeszthető: a szöveg
+// folyásába illeszkedik, szaggatott aláhúzás jelzi, hogy módosítható.
+.film-length-input {
+  width: 6ch;
+  padding: 0 2px;
+  border: none;
+  border-bottom: 1px dashed var(--cv-text-dim);
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+  color: var(--cv-text);
+  font: inherit; // örökli a readout monospace betűjét és méretét
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  cursor: text;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: var(--cv-bg-hover);
+    border-bottom-color: var(--cv-accent);
+  }
+
+  &:focus {
+    background: var(--cv-accent-bg);
+    border-bottom-color: var(--cv-accent);
+    border-bottom-style: solid;
+  }
+
+  // A natív szám-léptető nyilak elrejtése
+  -moz-appearance: textfield;
+  appearance: textfield;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
 .speed-wrap input[type="range"] {
   width: 100px;
   -webkit-appearance: none;
@@ -399,7 +437,7 @@ app-graph-view {
   }
 }
 
-// ── Responsive ────────────────────────────────────────────────────────────────
+// reszponzív
 @media (max-width: 768px) {
   .logo-text { font-size: 12px; }
 
