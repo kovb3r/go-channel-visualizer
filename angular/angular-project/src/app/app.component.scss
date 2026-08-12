@@ -3,6 +3,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; // mobilon a böngésző címsávja ne vágja le az alját
   overflow: hidden;
 }
 
@@ -481,7 +482,8 @@ app-graph-view {
     white-space: nowrap;
   }
 
-  .time-detail { display: none; }
+  // csak a valós idő tűnik el; a film hossza szerkeszthető marad
+  .time-real { display: none; }
 
   .ctrl-btn.ev-btn { padding: 5px 8px; }
 

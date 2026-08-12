@@ -81,8 +81,11 @@
                 title="Playback length (ms)"
                 aria-label="Playback length in milliseconds" />
           ms
-          <span class="time-sep">·</span>
-          real {{ clockReal | number:'1.0-0' }} / {{ realDuration | number:'1.0-0' }} ms
+          <!-- mobilon ez a rész rejtve, hogy a film hossza szerkeszthető maradjon -->
+          <span class="time-real">
+            <span class="time-sep">·</span>
+            real {{ clockReal | number:'1.0-0' }} / {{ realDuration | number:'1.0-0' }} ms
+          </span>
         </span>
       </div>
 
